@@ -1,0 +1,18 @@
+@import 'tailwindcss';
+
+@source '../views/**/*.blade.php';
+@source '../../public/js/**/*.js';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Instrument Sans', 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Paleta Corporativa DataMind */
+    --color-datamind-primary: #0476D9;
+    --color-datamind-dark: #0468BF;
+    --color-datamind-secondary: #4B89BF;
+    --color-datamind-light: #99D0F2;
+    --color-datamind-neutral: #F2F2F2;
+}

@@ -1,0 +1,173 @@
+
+/* Toastr global: que los toasts se vean sólidos en toda la aplicación */
+#toast-container>.toast {
+    opacity: 1 !important;
+}
+
+/* Animaciones para la burbuja de ajustes */
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+}
+
+.swal-rect {
+    border-radius: 0 !important;
+}
+
+.swal-rect .swal2-actions button {
+    border-radius: 0 !important;
+}
+
+[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: -35px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    color: #f1f5f9;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    transition-delay: 300ms;
+    z-index: 100;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+    bottom: -40px;
+}
+
+/* Estados Hover Globales (0.06 - 0.08) */
+.hover-effect:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+    transition: all 150ms ease;
+}
+
+.dark .hover-effect:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Theme-aware custom scrollbar styles */
+.app-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-scrollbar-thumb) var(--app-scrollbar-track);
+    --app-scrollbar-track: transparent;
+    --app-scrollbar-thumb: #2D9A84;
+}
+
+.dark .app-scrollbar {
+    --app-scrollbar-track: transparent;
+    --app-scrollbar-thumb: rgba(255, 255, 255, 0.22);
+}
+
+.app-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.app-scrollbar::-webkit-scrollbar-button {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+.app-scrollbar::-webkit-scrollbar-track {
+    background: var(--app-scrollbar-track);
+}
+
+.app-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--app-scrollbar-thumb);
+    border-radius: 0;
+    border: 0;
+}
+
+.app-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--app-scrollbar-thumb);
+}
+
+/* Mobile Drawer Overlay */
+@media (max-width: 1024px) {
+    #sidebar {
+        position: fixed;
+        left: -210px;
+        z-index: 50;
+    }
+
+    #sidebar.mobile-open {
+        left: 0;
+    }
+
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 40;
+        backdrop-filter: blur(2px);
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+    }
+}
+
+/* Efecto Wipe para Cambio de Tema (View Transitions API) */
+::view-transition-old(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+    will-change: clip-path;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+}
+
+html[data-theme-transition="to-dark"]::view-transition-new(root) {
+    animation: reveal-to-right 0.55s linear both;
+}
+
+html[data-theme-transition="to-light"]::view-transition-new(root) {
+    animation: reveal-to-left 0.55s linear both;
+}
+
+@keyframes reveal-to-right {
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
+
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+@keyframes reveal-to-left {
+    from {
+        clip-path: inset(0 0 0 100%);
+    }
+
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}

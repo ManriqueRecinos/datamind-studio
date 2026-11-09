@@ -1,0 +1,380 @@
+
+/* ==========================================================================
+   DATAMIND AI - SISTEMA GLOBAL DE TOKENS Y PALETA CORPORATIVA
+   Colores Base Oficiales:
+   1. #0476D9 (Primary Brand Blue)
+   2. #0468BF (Primary Dark / Hover Blue)
+   3. #4B89BF (Secondary Steel Blue)
+   4. #99D0F2 (Soft Sky Blue / Light Accent)
+   5. #F2F2F2 (Neutral Light Surface / Background)
+   ========================================================================== */
+:root {
+    /* Colores Principales en Hex */
+    --datamind-primary: #0476D9;
+    --datamind-primary-dark: #0468BF;
+    --datamind-secondary: #4B89BF;
+    --datamind-accent-light: #99D0F2;
+    --datamind-bg-neutral: #F2F2F2;
+
+    /* Canales RGB para composiciones con opacidad (rgba) */
+    --datamind-primary-rgb: 4, 118, 217;
+    --datamind-primary-dark-rgb: 4, 104, 191;
+    --datamind-secondary-rgb: 75, 137, 191;
+    --datamind-accent-light-rgb: 153, 208, 242;
+    --datamind-bg-neutral-rgb: 242, 242, 242;
+
+    /* Variantes Semánticas y de Interacción */
+    --datamind-primary-soft: rgba(4, 118, 217, 0.08);
+    --datamind-primary-medium: rgba(4, 118, 217, 0.16);
+    --datamind-secondary-soft: rgba(75, 137, 191, 0.12);
+    --datamind-accent-soft: rgba(153, 208, 242, 0.25);
+    --datamind-accent-border: rgba(153, 208, 242, 0.65);
+    --datamind-focus-ring: rgba(153, 208, 242, 0.50);
+
+    /* Degradados Corporativos */
+    --datamind-gradient-primary: linear-gradient(135deg, #0468BF 0%, #0476D9 60%, #4B89BF 100%);
+    --datamind-gradient-hero: linear-gradient(135deg, #033f75 0%, #0468BF 45%, #0476D9 85%, #4B89BF 100%);
+    --datamind-gradient-avatar: linear-gradient(135deg, #0468BF 0%, #4B89BF 100%);
+}
+
+/* Clases Utilitarias Globales de la Paleta DataMind */
+.bg-datamind-neutral {
+    background-color: var(--datamind-bg-neutral);
+}
+
+.bg-datamind-gradient {
+    background-image: var(--datamind-gradient-primary);
+}
+
+.bg-datamind-hero {
+    background-image: var(--datamind-gradient-hero);
+}
+
+.bg-datamind-avatar {
+    background-image: var(--datamind-gradient-avatar);
+}
+
+.btn-datamind-primary {
+    background-color: var(--datamind-primary);
+    color: #ffffff;
+    transition: all 0.15s ease-in-out;
+    box-shadow: 0 2px 6px rgba(4, 104, 191, 0.22);
+}
+
+.btn-datamind-primary:hover {
+    background-color: var(--datamind-primary-dark);
+    box-shadow: 0 4px 10px rgba(4, 104, 191, 0.30);
+}
+
+.btn-datamind-primary:active {
+    background-color: #03569e;
+    transform: translateY(0.5px);
+}
+
+.btn-datamind-soft {
+    background-color: var(--datamind-accent-soft);
+    color: var(--datamind-primary-dark);
+    border: 1px solid var(--datamind-accent-light);
+    transition: all 0.15s ease-in-out;
+}
+
+.btn-datamind-soft:hover {
+    background-color: rgba(153, 208, 242, 0.45);
+    border-color: var(--datamind-secondary);
+    color: var(--datamind-primary-dark);
+}
+
+.badge-datamind {
+    background-color: var(--datamind-accent-soft);
+    color: var(--datamind-primary-dark);
+    border: 1px solid var(--datamind-accent-light);
+}
+
+.input-datamind:focus {
+    border-color: var(--datamind-primary) !important;
+    box-shadow: 0 0 0 3px var(--datamind-focus-ring) !important;
+    outline: none !important;
+}
+
+/* Barra de scroll estilizada con la paleta DataMind */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--datamind-accent-light) var(--datamind-bg-neutral);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: var(--datamind-bg-neutral);
+    border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--datamind-accent-light);
+    border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--datamind-secondary);
+}
+
+/* ==========================================================================
+   FIX FONTAWESOME 900 SOLID WEBFONT LOCAL (Corrige src:url() vacío en all.min.css)
+   ========================================================================== */
+@font-face {
+    font-family: "Font Awesome 7 Free";
+    font-style: normal;
+    font-weight: 900;
+    font-display: block;
+    src: url("../webfonts/fa-solid-900.woff2") format("woff2"),
+         url("../webfonts/fa-solid-900.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "Font Awesome 6 Free";
+    font-style: normal;
+    font-weight: 900;
+    font-display: block;
+    src: url("../webfonts/fa-solid-900.woff2") format("woff2"),
+         url("../webfonts/fa-solid-900.ttf") format("truetype");
+}
+
+/* ==========================================================================
+   DATATABLES SCROLL INTERNO Y HEADER FIJO (Sin alargar ni desbordar)
+   ========================================================================== */
+.dataTables_wrapper .dataTables_scroll {
+    border: 1px solid rgba(153, 208, 242, 0.65);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    width: 100%;
+}
+
+.dataTables_wrapper .dataTables_scrollHead {
+    background-color: var(--datamind-bg-neutral) !important;
+    border-bottom: 1px solid rgba(153, 208, 242, 0.75) !important;
+    overflow: hidden !important;
+}
+
+.dataTables_wrapper .dataTables_scrollHeadInner {
+    box-sizing: content-box !important;
+}
+
+.dataTables_wrapper .dataTables_scrollHeadInner table thead th,
+.dataTables_wrapper table.dataTable thead th {
+    white-space: nowrap !important;
+    padding: 0.65rem 1rem !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    color: var(--datamind-primary-dark) !important;
+    background-color: var(--datamind-bg-neutral) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    vertical-align: middle !important;
+}
+
+.dataTables_wrapper .dataTables_scrollBody {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin;
+    scrollbar-color: var(--datamind-accent-light) var(--datamind-bg-neutral);
+}
+
+.dataTables_wrapper .dataTables_scrollBody table tbody td {
+    white-space: nowrap !important;
+    padding: 0.55rem 1rem !important;
+    vertical-align: middle !important;
+}
+
+.dataTables_wrapper .dataTables_scrollBody::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+}
+
+.dataTables_wrapper .dataTables_scrollBody::-webkit-scrollbar-track {
+    background: var(--datamind-bg-neutral);
+}
+
+.dataTables_wrapper .dataTables_scrollBody::-webkit-scrollbar-thumb {
+    background-color: var(--datamind-accent-light);
+    border-radius: 9999px;
+}
+
+.dataTables_wrapper .dataTables_scrollBody::-webkit-scrollbar-thumb:hover {
+    background-color: var(--datamind-secondary);
+}
+
+/* Toastr global: que los toasts se vean sólidos en toda la aplicación */
+#toast-container>.toast {
+    opacity: 1 !important;
+}
+
+/* Animaciones para la burbuja de ajustes */
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+}
+
+.swal-rect {
+    border-radius: 0 !important;
+}
+
+.swal-rect .swal2-actions button {
+    border-radius: 0 !important;
+}
+
+[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: -35px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    color: #f1f5f9;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    transition-delay: 300ms;
+    z-index: 100;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+    bottom: -40px;
+}
+
+/* Estados Hover Globales (0.06 - 0.08) */
+.hover-effect:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+    transition: all 150ms ease;
+}
+
+.dark .hover-effect:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Theme-aware custom scrollbar styles */
+.app-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-scrollbar-thumb) var(--app-scrollbar-track);
+    --app-scrollbar-track: transparent;
+    --app-scrollbar-thumb: var(--datamind-secondary);
+}
+
+.dark .app-scrollbar {
+    --app-scrollbar-track: transparent;
+    --app-scrollbar-thumb: rgba(255, 255, 255, 0.22);
+}
+
+.app-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.app-scrollbar::-webkit-scrollbar-button {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+.app-scrollbar::-webkit-scrollbar-track {
+    background: var(--app-scrollbar-track);
+}
+
+.app-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--app-scrollbar-thumb);
+    border-radius: 0;
+    border: 0;
+}
+
+.app-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--app-scrollbar-thumb);
+}
+
+/* Mobile Drawer Overlay */
+@media (max-width: 1024px) {
+    #sidebar {
+        position: fixed;
+        left: -210px;
+        z-index: 50;
+    }
+
+    #sidebar.mobile-open {
+        left: 0;
+    }
+
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 40;
+        backdrop-filter: blur(2px);
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+    }
+}
+
+/* Efecto Wipe para Cambio de Tema (View Transitions API) */
+::view-transition-old(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+    will-change: clip-path;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+}
+
+html[data-theme-transition="to-dark"]::view-transition-new(root) {
+    animation: reveal-to-right 0.55s linear both;
+}
+
+html[data-theme-transition="to-light"]::view-transition-new(root) {
+    animation: reveal-to-left 0.55s linear both;
+}
+
+@keyframes reveal-to-right {
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
+
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+@keyframes reveal-to-left {
+    from {
+        clip-path: inset(0 0 0 100%);
+    }
+
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
