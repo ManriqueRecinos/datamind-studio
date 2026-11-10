@@ -1,14 +1,28 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DatabaseConnectionController;
 use Illuminate\Support\Facades\Route;
 
-// Rutas de DataMind Studio - Asistente IA y RAG Multi-Base de Datos
+// Rutas de Autenticación de Usuario (Login, Registro y Logout)
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
+Route::post('/register', [AuthController::class, 'register'])->name('register.submit');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Rutas de DataMind Studio - Asistente IA, Historial por Usuario y Constructor de Gráficos
 Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
 Route::post('/chat/send', [ChatController::class, 'send'])->name('chat.send');
 Route::post('/chat/stream', [ChatController::class, 'stream'])->name('chat.stream');
+Route::get('/chat/sessions', [ChatController::class, 'listSessions'])->name('chat.sessions.list');
+Route::get('/chat/sessions/{sessionId}', [ChatController::class, 'showSession'])->name('chat.sessions.show');
+Route::delete('/chat/sessions/{sessionId}', [ChatController::class, 'destroySession'])->name('chat.sessions.destroy');
+Route::get('/chat/dataset/{datasetId}', [ChatController::class, 'getDataset'])->name('chat.dataset');
 Route::get('/chat/export/{datasetId}', [ChatController::class, 'exportExcel'])->name('chat.export');
+Route::get('/chat/training/rules', [ChatController::class, 'listKnowledgeRules'])->name('chat.training.list');
+Route::post('/chat/training/train', [ChatController::class, 'trainKnowledgeRule'])->name('chat.training.train');
+Route::delete('/chat/training/rules/{ruleId}', [ChatController::class, 'deleteKnowledgeRule'])->name('chat.training.destroy');
 
 // Rutas del Gestor Dinámico de Bases de Datos y Vectorización Selectiva
 Route::get('/connections', [DatabaseConnectionController::class, 'index'])->name('connections.index');

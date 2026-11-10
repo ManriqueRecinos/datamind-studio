@@ -31,7 +31,7 @@ class FastApiClient
      * @param string|null $connectionId
      * @return array
      */
-    public function sendMessage(string $prompt, ?string $sessionId = null, ?string $connectionId = null): array
+    public function sendMessage(string $prompt, ?string $sessionId = null, ?string $connectionId = null, string $userId = 'user'): array
     {
         try {
             $response = Http::withToken($this->apiKey)
@@ -40,6 +40,7 @@ class FastApiClient
                     'prompt' => $prompt,
                     'session_id' => $sessionId,
                     'connection_id' => $connectionId,
+                    'user_id' => $userId,
                 ]));
 
             if ($response->successful()) {
@@ -72,14 +73,14 @@ class FastApiClient
      * @param string|null $connectionId
      * @return StreamedResponse
      */
-    public function streamChat(string $prompt, ?string $sessionId = null, ?string $connectionId = null): StreamedResponse
+    public function streamChat(string $prompt, ?string $sessionId = null, ?string $connectionId = null, string $userId = 'user'): StreamedResponse
     {
         $client = new GuzzleClient([
             'timeout' => 120,
             'read_timeout' => 120,
         ]);
 
-        return response()->stream(function () use ($client, $prompt, $sessionId, $connectionId) {
+        return response()->stream(function () use ($client, $prompt, $sessionId, $connectionId, $userId) {
             // Deshabilitar buffers de salida PHP
             while (ob_get_level() > 0) {
                 ob_end_flush();
@@ -96,6 +97,7 @@ class FastApiClient
                         'prompt' => $prompt,
                         'session_id' => $sessionId,
                         'connection_id' => $connectionId,
+                        'user_id' => $userId,
                     ]),
                     'stream' => true,
                 ]);
@@ -132,6 +134,106 @@ class FastApiClient
         return Http::withToken($this->apiKey)
             ->timeout(30)
             ->get("{$this->baseUrl}/export/excel/{$datasetId}");
+    }
+
+    /**
+     * Obtiene las filas completas y configuración de columnas de un dataset en caché para construir gráficos.
+     *
+     * @param string $datasetId
+     * @return array
+     */
+    public function getDatasetJson(string $datasetId): array
+    {
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(20)
+                ->get("{$this->baseUrl}/export/dataset/{$datasetId}");
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return [
+                'success' => false,
+                'message' => $response->json('detail') ?? 'No se encontró el dataset solicitado.',
+            ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Lista el historial de sesiones de conversación del usuario autenticado.
+     *
+     * @param string $userId
+     * @return array
+     */
+    public function listChatSessions(string $userId): array
+    {
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(15)
+                ->get("{$this->baseUrl}/chat/sessions", ['user_id' => $userId]);
+
+            return $response->successful() ? ($response->json() ?? []) : [];
+        } catch (\Throwable $e) {
+            Log::warning('Error listando sesiones de chat desde FastAPI', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    /**
+     * Obtiene el detalle y mensajes de una sesión de chat específica.
+     *
+     * @param string $sessionId
+     * @param string $userId
+     * @return array
+     */
+    public function getChatSessionDetail(string $sessionId, string $userId): array
+    {
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(20)
+                ->get("{$this->baseUrl}/chat/sessions/{$sessionId}", ['user_id' => $userId]);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return [
+                'success' => false,
+                'message' => $response->json('detail') ?? 'No se encontró la conversación.',
+            ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Elimina una sesión del historial de conversaciones del usuario.
+     *
+     * @param string $sessionId
+     * @param string $userId
+     * @return array
+     */
+    public function deleteChatSession(string $sessionId, string $userId): array
+    {
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(15)
+                ->delete("{$this->baseUrl}/chat/sessions/{$sessionId}?user_id=" . urlencode($userId));
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return [
+                'success' => false,
+                'message' => $response->json('detail') ?? 'No se pudo eliminar la conversación.',
+            ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
     }
 
     /**
@@ -302,5 +404,71 @@ class FastApiClient
             'success' => false,
             'message' => $response->json('detail') ?? 'No se pudo eliminar la conexión.',
         ];
+    }
+
+    /**
+     * Lista las reglas, relaciones manuales, fórmulas y ejemplos SQL aprendidos por la IA.
+     */
+    public function listKnowledgeRules(?string $connectionId = null): array
+    {
+        try {
+            $query = $connectionId ? ['connection_id' => $connectionId] : [];
+            $response = Http::withToken($this->apiKey)
+                ->timeout(15)
+                ->get("{$this->baseUrl}/knowledge/rules", $query);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+            return ['success' => false, 'message' => 'No se pudieron obtener las reglas aprendidas.'];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Enseña y vectoriza una cápsula de conocimiento en pgvector.
+     */
+    public function trainKnowledgeRule(array $payload): array
+    {
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(60)
+                ->post("{$this->baseUrl}/knowledge/train", $payload);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return [
+                'success' => false,
+                'message' => $response->json('detail') ?? 'No se pudo guardar la enseñanza en la IA.',
+            ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Elimina una regla o cápsula de entrenamiento de pgvector.
+     */
+    public function deleteKnowledgeRule(string $ruleId): array
+    {
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(15)
+                ->delete("{$this->baseUrl}/knowledge/rules/{$ruleId}");
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return [
+                'success' => false,
+                'message' => $response->json('detail') ?? 'No se pudo eliminar la regla.',
+            ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
     }
 }
