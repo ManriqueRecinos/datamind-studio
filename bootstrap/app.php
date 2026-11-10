@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'chat/stream',
             'chat/send',
+            'chat/sessions/*',
             'connections/*',
             'connections',
         ]);

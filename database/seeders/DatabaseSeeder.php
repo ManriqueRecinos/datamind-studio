@@ -15,11 +15,20 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        User::updateOrCreate(
+            ['email' => 'admin@datamind.local'],
+            [
+                'name' => 'Administrador DataMind',
+                'password' => 'datamind2026',
+            ]
+        );
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        User::updateOrCreate(
+            ['email' => 'analista@datamind.local'],
+            [
+                'name' => 'Analista BI',
+                'password' => 'datamind2026',
+            ]
+        );
     }
 }
