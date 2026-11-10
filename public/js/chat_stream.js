@@ -9,6 +9,22 @@
 
     let currentSessionId = null;
     let isProcessing = false;
+    const chartInstances = {};
+    const datasetRowsCache = {};
+
+    // Paleta de colores corporativa DataMind para gráficos
+    const DATAMIND_CHART_PALETTE = [
+        '#0476D9', // Primary
+        '#0468BF', // Dark
+        '#4B89BF', // Secondary
+        '#0ea5e9', // Sky
+        '#6366f1', // Indigo
+        '#14b8a6', // Teal
+        '#f59e0b', // Amber
+        '#99D0F2', // Light
+        '#8b5cf6', // Violet
+        '#ec4899'  // Pink
+    ];
 
     // Elementos del DOM
     const chatContainer = document.getElementById('chatMessagesContainer');
@@ -17,6 +33,8 @@
     const btnNewChat = document.getElementById('btnNewChat');
     const emptyState = document.getElementById('emptyStatePlaceholder');
     const activeConnectionSelect = document.getElementById('activeConnectionSelect');
+    const userSessionsList = document.getElementById('userSessionsList');
+    const historyCountBadge = document.getElementById('historyCountBadge');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     // Inicialización al cargar la página
@@ -31,12 +49,38 @@
         // Escuchar envío por click
         sendButton.addEventListener('click', handleSendMessage);
 
-        // Escuchar tecla Enter (sin Shift)
+        // Escuchar tecla Enter (sin Shift) y auto-ajustar altura del textarea
         promptInput.addEventListener('keydown', function (e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSendMessage();
             }
+        });
+
+        promptInput.addEventListener('input', function () {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 160) + 'px';
+        });
+
+        // Delegación global para copiar bloques de código Markdown
+        chatContainer.addEventListener('click', function (e) {
+            const copyBtn = e.target.closest('.md-copy-btn');
+            if (!copyBtn) return;
+
+            const block = copyBtn.closest('.md-code-block');
+            const codeElem = block?.querySelector('code');
+            if (!codeElem) return;
+
+            const textToCopy = codeElem.innerText || codeElem.textContent || '';
+            navigator.clipboard?.writeText(textToCopy).then(() => {
+                const originalHtml = copyBtn.innerHTML;
+                copyBtn.innerHTML = `<i class="fa-solid fa-check text-emerald-400"></i> Copiado`;
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalHtml;
+                }, 1800);
+            }).catch(() => {
+                if (window.toastr) toastr.info('Código seleccionado.');
+            });
         });
 
         // Botón Nueva Conversación
@@ -74,7 +118,216 @@
                 }
             });
         }
+
+        // Delegación para el panel lateral de Historial de Conversaciones ("Mis Conversaciones")
+        if (userSessionsList) {
+            userSessionsList.addEventListener('click', function (e) {
+                const deleteBtn = e.target.closest('.btn-delete-session');
+                if (deleteBtn) {
+                    e.stopPropagation();
+                    const sessionId = deleteBtn.getAttribute('data-session-id');
+                    if (sessionId) {
+                        handleDeleteSession(sessionId);
+                    }
+                    return;
+                }
+
+                const sessionItem = e.target.closest('.session-history-item');
+                if (sessionItem) {
+                    const sessionId = sessionItem.getAttribute('data-session-id');
+                    if (sessionId) {
+                        loadConversationSession(sessionId);
+                    }
+                }
+            });
+        }
     });
+
+    /**
+     * Actualiza la lista lateral de sesiones de conversación del usuario.
+     */
+    async function refreshUserSessionsSidebar() {
+        if (!userSessionsList) return;
+        try {
+            const res = await fetch('/chat/sessions', {
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!res.ok) return;
+            const json = await res.json();
+            const sessions = json.data || [];
+
+            if (historyCountBadge) {
+                historyCountBadge.textContent = String(sessions.length);
+            }
+
+            if (sessions.length === 0) {
+                userSessionsList.innerHTML = `
+                    <div id="emptySessionsNotice" class="text-center py-6 text-xs text-slate-400">
+                        Aún no tienes conversaciones guardadas. Envía una consulta para crear la primera.
+                    </div>
+                `;
+                return;
+            }
+
+            userSessionsList.innerHTML = sessions.map(sess => {
+                const isActive = sess.id === currentSessionId;
+                const activeClasses = isActive
+                    ? 'border-datamind-primary bg-datamind-light/25 shadow-2xs'
+                    : 'border-slate-200/80 hover:border-datamind-light hover:bg-datamind-light/20';
+                return `
+                    <div class="session-history-item group flex items-center justify-between gap-2 p-2.5 rounded-xl border ${activeClasses} transition cursor-pointer"
+                         data-session-id="${escapeHtml(sess.id)}">
+                        <div class="flex items-center gap-2 min-w-0 flex-1">
+                            <i class="fa-regular fa-message text-xs text-datamind-primary shrink-0"></i>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-xs font-semibold text-slate-800 truncate">${escapeHtml(sess.title || 'Conversación')}</p>
+                                <p class="text-[10px] text-slate-400">${sess.message_count ?? 0} mensajes</p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-delete-session opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-1 transition cursor-pointer"
+                                data-session-id="${escapeHtml(sess.id)}" title="Eliminar conversación">
+                            <i class="fa-solid fa-trash-can text-[11px]"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        } catch (err) {
+            console.warn('No se pudo refrescar el historial de sesiones:', err);
+        }
+    }
+
+    /**
+     * Carga y restaura todos los mensajes, tablas y constructores de gráficos de una conversación pasada.
+     */
+    async function loadConversationSession(sessionId) {
+        if (isProcessing || !sessionId) return;
+
+        try {
+            setProcessingState(true);
+            const res = await fetch(`/chat/sessions/${encodeURIComponent(sessionId)}`, {
+                headers: { 'Accept': 'application/json' }
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success || !json.data) {
+                throw new Error(json.message || 'No se pudo cargar la conversación seleccionada.');
+            }
+
+            const sessionData = json.data;
+            currentSessionId = sessionData.id;
+
+            // Limpiar contenedor de mensajes y ocultar estado vacío
+            chatContainer.innerHTML = '';
+            if (emptyState) {
+                emptyState.classList.add('hidden');
+            }
+
+            const messages = sessionData.messages || [];
+            if (messages.length === 0) {
+                if (emptyState) {
+                    chatContainer.appendChild(emptyState);
+                    emptyState.classList.remove('hidden');
+                }
+            } else {
+                messages.forEach(msg => {
+                    if (msg.role === 'user') {
+                        appendUserMessage(msg.content || '');
+                    } else {
+                        const { textSpan, contentWrapper, footerBadge } = createAssistantMessageCard();
+                        const loader = textSpan.querySelector('.ai-loading-indicator');
+                        if (loader) loader.remove();
+
+                        textSpan.dataset.rawMarkdown = msg.content || '';
+                        textSpan.innerHTML = renderMarkdownPreview(msg.content || '');
+
+                        if (footerBadge) {
+                            const latency = msg.latency_ms ? `${msg.latency_ms} ms` : 'Historial';
+                            footerBadge.innerHTML = `<span class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
+                                <i class="fa-solid fa-clock-rotate-left text-datamind-primary"></i> ${latency}
+                            </span>`;
+                        }
+
+                        if (msg.has_tabular_data && msg.dataset_id) {
+                            renderDatasetSection({
+                                dataset_id: msg.dataset_id,
+                                row_count: msg.row_count || 0,
+                                columns: msg.columns || [],
+                                preview_rows: msg.preview_rows || [],
+                                sql: msg.generated_sql || null,
+                                chart_config: msg.chart_config || null
+                            }, contentWrapper);
+                        }
+                    }
+                });
+            }
+
+            await refreshUserSessionsSidebar();
+            scrollToBottom();
+            if (window.toastr) {
+                toastr.info(`Conversación cargada: ${sessionData.title}`, 'Historial DataMind');
+            }
+        } catch (err) {
+            console.error('Error al cargar sesión:', err);
+            if (window.toastr) {
+                toastr.error(err.message || 'Error al cargar la conversación.', 'Historial');
+            }
+        } finally {
+            setProcessingState(false);
+        }
+    }
+
+    /**
+     * Elimina una conversación del historial del usuario.
+     */
+    async function handleDeleteSession(sessionId) {
+        if (isProcessing || !sessionId) return;
+
+        const executeDelete = async () => {
+            try {
+                const res = await fetch(`/chat/sessions/${encodeURIComponent(sessionId)}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    }
+                });
+                if (!res.ok) {
+                    throw new Error('No se pudo eliminar la conversación.');
+                }
+
+                if (currentSessionId === sessionId) {
+                    resetChatSession();
+                }
+                await refreshUserSessionsSidebar();
+
+                if (window.toastr) {
+                    toastr.success('Conversación eliminada correctamente.', 'Historial');
+                }
+            } catch (err) {
+                if (window.toastr) {
+                    toastr.error(err.message || 'Error al eliminar la conversación.', 'Error');
+                }
+            }
+        };
+
+        if (window.Swal) {
+            Swal.fire({
+                title: '¿Eliminar conversación?',
+                text: 'Esta conversación se borrará permanentemente de tu historial.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#4B89BF',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    executeDelete();
+                }
+            });
+        } else if (confirm('¿Deseas eliminar esta conversación de tu historial?')) {
+            executeDelete();
+        }
+    }
 
     /**
      * Resetea la conversación actual.
@@ -133,6 +386,7 @@
         // 1. Renderizar mensaje del usuario
         appendUserMessage(text);
         promptInput.value = '';
+        promptInput.style.height = 'auto';
         setProcessingState(true);
 
         // 2. Crear burbuja vacía del asistente con indicador de carga
@@ -229,13 +483,10 @@
 
             case 'token':
                 if (data.text) {
-                    // Reemplazar saltos de línea con <br> y renderizar de forma segura
-                    const formatted = data.text
-                        .replace(/&/g, '&amp;')
-                        .replace(/</g, '&lt;')
-                        .replace(/>/g, '&gt;')
-                        .replace(/\n/g, '<br>');
-                    textSpan.innerHTML += formatted;
+                    const prevRaw = textSpan.dataset.rawMarkdown || '';
+                    const updatedRaw = prevRaw + data.text;
+                    textSpan.dataset.rawMarkdown = updatedRaw;
+                    textSpan.innerHTML = renderMarkdownPreview(updatedRaw);
                     scrollToBottom();
                 }
                 break;
@@ -254,6 +505,7 @@
                         <i class="fa-solid fa-bolt text-amber-500"></i> ${latency} &bull; qwen2.5:3b
                     </span>`;
                 }
+                refreshUserSessionsSidebar();
                 break;
 
             case 'error':
@@ -265,28 +517,52 @@
     }
 
     /**
-     * Renderiza la vista previa de datos y el botón de descarga de Excel para un dataset devuelto.
+     * Renderiza la vista previa de datos, el Constructor Interactivo de Gráficos y el botón de descarga de Excel.
      */
     function renderDatasetSection(dataset, contentWrapper) {
-        const { dataset_id, row_count, columns, preview_rows, sql } = dataset;
-        const uniqueTableId = 'dt_' + dataset_id.replace(/[^a-zA-Z0-9_]/g, '_');
+        const { dataset_id, row_count, columns, preview_rows, sql, chart_config } = dataset;
+        const safeId = dataset_id.replace(/[^a-zA-Z0-9_]/g, '_');
+        const uniqueTableId = 'dt_' + safeId;
+        const tablePanelId = 'table_panel_' + safeId;
+        const tableToggleBtnId = 'table_toggle_' + safeId;
+        const chartPanelId = 'chart_panel_' + safeId;
+        const chartToggleBtnId = 'chart_toggle_' + safeId;
+        const autoExpandChart = Boolean(chart_config && chart_config.wants_chart);
+        const autoExpandTable = Boolean(chart_config && chart_config.wants_table);
 
         const card = document.createElement('div');
         card.className = 'mt-5 pt-4 border-t border-slate-200/80 w-full';
 
-        // Cabecera de la sección con botón de descarga
+        // Cabecera de la sección con botones bajo demanda (Tabla, Gráfico, Enseñar SQL y Descarga Excel)
         let html = `
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 bg-datamind-neutral/85 p-3.5 rounded-xl border border-datamind-light/70">
                 <div class="flex items-center gap-2.5">
                     <div class="h-9 w-9 rounded-lg badge-datamind flex items-center justify-center text-sm font-bold shadow-xs">
-                        <i class="fa-solid fa-table text-datamind-primary"></i>
+                        <i class="fa-solid fa-database text-datamind-primary"></i>
                     </div>
                     <div>
                         <h4 class="text-xs font-bold text-slate-800">Resultado de Consulta Corporativa</h4>
-                        <p class="text-[11px] text-datamind-secondary font-medium">${row_count} registros devueltos &bull; MariaDB</p>
+                        <p class="text-[11px] text-datamind-secondary font-medium">${row_count} registros devueltos &bull; SQL Analítico</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" id="${tableToggleBtnId}"
+                            class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white hover:bg-slate-50 text-datamind-dark border border-datamind-light/85 text-xs font-semibold shadow-2xs transition duration-150 cursor-pointer">
+                        <i class="fa-solid fa-table text-datamind-primary text-xs"></i>
+                        <span>${autoExpandTable ? 'Ocultar Tabla' : 'Ver Tabla (' + row_count + ')'}</span>
+                    </button>
+                    <button type="button" id="${chartToggleBtnId}"
+                            class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg btn-datamind-primary text-xs font-semibold shadow-xs transition duration-150 cursor-pointer">
+                        <i class="fa-solid fa-chart-pie text-sm"></i>
+                        <span>${autoExpandChart ? 'Ocultar Gráfico' : 'Personalizar / Ver Gráfico'}</span>
+                    </button>
+                    ${sql ? `
+                    <button type="button" class="btn-teach-sql inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-datamind-light/30 hover:bg-datamind-light/50 text-datamind-dark border border-datamind-light text-xs font-semibold shadow-2xs transition cursor-pointer"
+                            data-sql="${escapeHtml(sql)}" title="Guardar esta consulta como ejemplo SQL de oro para que la IA aprenda de ella">
+                        <i class="fa-solid fa-brain text-datamind-primary"></i>
+                        <span>Enseñar este SQL a la IA</span>
+                    </button>
+                    ` : ''}
                     <a href="/chat/export/${dataset_id}" 
                        onclick="if(window.toastr){ toastr.info('Descargando archivo Excel estilizado...', 'DataMind AI'); }"
                        class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold shadow-xs transition duration-150">
@@ -297,10 +573,150 @@
             </div>
         `;
 
-        // Si se devuelven columnas y filas de previsualización, renderizar la tabla con estilos nativos DataMind
+        // Panel del Constructor Interactivo de Gráficos (DataMind Visual Analytics - Flujo Guiado Opción A)
+        if (columns && columns.length > 0) {
+            const dimCols = (chart_config && Array.isArray(chart_config.dimension_columns) && chart_config.dimension_columns.length > 0)
+                ? chart_config.dimension_columns
+                : columns;
+            const metricCols = (chart_config && Array.isArray(chart_config.metric_columns))
+                ? chart_config.metric_columns
+                : [];
+            const colSamples = (chart_config && chart_config.column_samples) ? chart_config.column_samples : {};
+            const needsFieldSelection = Boolean(chart_config && chart_config.needs_field_selection);
+            const defaultType = (chart_config && (chart_config.suggested_type || chart_config.chart_type)) || 'bar';
+            const defaultX = (chart_config && (chart_config.suggested_x || chart_config.x_field)) || dimCols[0] || columns[0];
+            const defaultY = (chart_config && (chart_config.suggested_y || chart_config.y_field)) || metricCols[0] || columns[0];
+            const defaultAgg = (chart_config && (chart_config.suggested_agg || chart_config.aggregation)) || (metricCols.length > 0 ? 'SUM' : 'COUNT');
+
+            html += `
+                <div id="${chartPanelId}" class="${autoExpandChart ? '' : 'hidden '}w-full bg-white rounded-2xl border border-datamind-light/85 shadow-xs overflow-hidden mt-3 mb-4 transition-all">
+                    <div class="p-3.5 bg-datamind-neutral border-b border-datamind-light/60 flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="h-7 w-7 rounded-lg bg-datamind-primary/15 text-datamind-primary flex items-center justify-center text-xs font-bold">
+                                <i class="fa-solid fa-chart-column"></i>
+                            </span>
+                            <div>
+                                <h5 class="text-xs font-bold text-datamind-dark">
+                                    ${needsFieldSelection ? 'Asistente de Selección de Campos (Paso 1 de 2)' : 'Constructor Interactivo de Gráficos'}
+                                </h5>
+                                <p class="text-[11px] text-slate-500">
+                                    ${needsFieldSelection
+                                        ? 'La IA analizó las tablas relacionadas. Elige con qué campos deseas generar tu gráfico:'
+                                        : 'Selecciona con un clic qué campos y operación deseas visualizar'}
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-download-chart ${needsFieldSelection ? 'hidden ' : ''}inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-datamind-dark border border-datamind-light/80 text-xs font-semibold transition cursor-pointer shadow-2xs">
+                            <i class="fa-solid fa-camera text-datamind-primary"></i> Descargar PNG
+                        </button>
+                    </div>
+
+                    <!-- Banner de Confirmación Guiada (Opción A: cuando la IA pregunta con qué campos crear el gráfico) -->
+                    <div class="chart-wizard-banner ${needsFieldSelection ? '' : 'hidden '}p-4 bg-datamind-light/20 border-b border-datamind-light/70">
+                        <div class="flex items-start gap-3">
+                            <div class="h-8 w-8 rounded-xl bg-datamind-primary text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-2xs">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h6 class="text-xs font-bold text-datamind-dark mb-1">
+                                    ¿Con qué campos de las tablas consultadas deseas crear el gráfico?
+                                </h6>
+                                <p class="text-[11px] text-slate-600 mb-3">
+                                    He detectado <strong>${dimCols.length} campos de agrupación/estado</strong> y <strong>${metricCols.length} campos numéricos</strong>. Selecciona abajo los ejes que prefieras y pulsa <strong>Generar Gráfico</strong> (o pídeselo a la IA).
+                                </p>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <button type="button" class="btn-confirm-generate-chart inline-flex items-center gap-1.5 px-4 py-2 rounded-xl btn-datamind-primary text-xs font-bold shadow-xs transition cursor-pointer">
+                                        <i class="fa-solid fa-chart-Simple"></i> ✨ Generar Gráfico con estos Campos
+                                    </button>
+                                    <button type="button" class="btn-ask-ai-chart inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-datamind-neutral text-datamind-dark border border-datamind-light text-xs font-semibold transition cursor-pointer">
+                                        <i class="fa-solid fa-robot text-datamind-primary"></i> 💬 Pedirle a la IA en el Chat
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tarjetas / Chips rápidos de selección de campo principal (Eje X) con muestra de dato real -->
+                    <div class="px-4 pt-3 pb-2.5 border-b border-slate-100 bg-slate-50/60">
+                        <span class="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-2">
+                            <i class="fa-solid fa-layer-group text-datamind-primary mr-1"></i> Clic rápido para elegir Campo Principal (Eje X):
+                        </span>
+                        <div class="flex flex-wrap gap-1.5 chart-field-chips">
+                            ${columns.map(col => {
+                                const isSuggestedDim = dimCols.includes(col);
+                                const isActiveChip = col === defaultX;
+                                const sampleInfo = colSamples[col] || {};
+                                const isFkId = sampleInfo.kind === 'foreign_key';
+                                const sampleVal = sampleInfo.sample || (preview_rows && preview_rows[0] && preview_rows[0][col] !== undefined ? String(preview_rows[0][col]).substring(0, 22) : '');
+                                return `
+                                    <button type="button" data-col="${escapeHtml(col)}"
+                                            title="${isFkId ? 'Llave foránea / ID de relación (' + escapeHtml(col) + ')' : (sampleVal ? 'Ejemplo: ' + escapeHtml(sampleVal) : escapeHtml(col))}"
+                                            class="chart-chip-btn text-[11px] px-2.5 py-1.5 rounded-xl border font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                                                isActiveChip
+                                                    ? 'bg-datamind-primary text-white border-datamind-primary shadow-2xs'
+                                                    : 'bg-white text-slate-700 border-slate-200 hover:border-datamind-light hover:bg-datamind-light/20'
+                                            }">
+                                        <i class="fa-solid ${isFkId ? 'fa-key' : (isSuggestedDim ? 'fa-tag' : 'fa-hashtag')} text-[10px] opacity-80"></i>
+                                        <span>${escapeHtml(col)}</span>
+                                        ${sampleVal ? `<span class="text-[9px] px-1.5 py-0.2 rounded bg-black/10 opacity-85 truncate max-w-[95px]">ej: ${escapeHtml(sampleVal)}</span>` : ''}
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <!-- 4 Controles Súper Sencillos: Tipo, Eje X, Operación y Eje Y -->
+                    <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-white border-b border-slate-100">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">1. Tipo de Gráfico</label>
+                            <select class="chart-type-select w-full px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-800 focus:outline-hidden focus:border-datamind-primary cursor-pointer">
+                                <option value="bar" ${defaultType === 'bar' ? 'selected' : ''}>📊 Barras Verticales</option>
+                                <option value="horizontalBar" ${defaultType === 'horizontalBar' ? 'selected' : ''}>📉 Barras Horizontales</option>
+                                <option value="line" ${defaultType === 'line' ? 'selected' : ''}>📈 Líneas / Tendencia</option>
+                                <option value="doughnut" ${defaultType === 'doughnut' ? 'selected' : ''}>🍩 Anillo / Dona</option>
+                                <option value="pie" ${defaultType === 'pie' ? 'selected' : ''}>🥧 Pastel / Proporción</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">2. Eje X (Agrupar por)</label>
+                            <select class="chart-x-select w-full px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-800 focus:outline-hidden focus:border-datamind-primary cursor-pointer">
+                                ${columns.map(col => `<option value="${escapeHtml(col)}" ${col === defaultX ? 'selected' : ''}>${escapeHtml(col)}${dimCols.includes(col) ? ' (Categoría)' : ''}</option>`).join('')}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">3. Operación / Cálculo</label>
+                            <select class="chart-agg-select w-full px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-800 focus:outline-hidden focus:border-datamind-primary cursor-pointer">
+                                <option value="COUNT" ${defaultAgg === 'COUNT' ? 'selected' : ''}>🔢 Contar registros (COUNT)</option>
+                                <option value="SUM" ${defaultAgg === 'SUM' ? 'selected' : ''}>➕ Sumar valores (SUM)</option>
+                                <option value="AVG" ${defaultAgg === 'AVG' ? 'selected' : ''}>➗ Promedio (AVG)</option>
+                                <option value="RAW" ${defaultAgg === 'RAW' ? 'selected' : ''}>📍 Valor directo por fila</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">4. Eje Y (Campo Numérico)</label>
+                            <select class="chart-y-select w-full px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-800 focus:outline-hidden focus:border-datamind-primary cursor-pointer" ${defaultAgg === 'COUNT' ? 'disabled' : ''}>
+                                ${columns.map(col => `<option value="${escapeHtml(col)}" ${col === defaultY ? 'selected' : ''}>${escapeHtml(col)}${metricCols.includes(col) ? ' (Numérico)' : ''}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Lienzo de Renderizado Chart.js (Oculto en Paso 1 hasta que el usuario confirme los campos) -->
+                    <div class="chart-canvas-stage ${needsFieldSelection ? 'hidden ' : ''}p-4 bg-white">
+                        <div class="relative w-full h-72 sm:h-80 flex items-center justify-center">
+                            <canvas id="canvas_${safeId}"></canvas>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Si se devuelven columnas y filas de previsualización, renderizar la tabla (visible solo si wants_table === true o al pulsar Ver Tabla)
         if (columns && columns.length > 0 && preview_rows && preview_rows.length > 0) {
             html += `
-                <div class="w-full bg-white rounded-xl border border-datamind-light/75 shadow-2xs overflow-hidden mt-3">
+                <div id="${tablePanelId}" class="${autoExpandTable ? '' : 'hidden '}w-full bg-white rounded-xl border border-datamind-light/75 shadow-2xs overflow-hidden mt-3">
                     <div class="p-3 bg-datamind-neutral border-b border-datamind-light/60 flex items-center justify-between">
                         <span class="text-xs font-semibold text-datamind-dark flex items-center gap-1.5">
                             <i class="fa-solid fa-eye text-datamind-primary"></i> Vista Previa Interactiva (Primeros ${preview_rows.length} registros)
@@ -340,38 +756,382 @@
         card.innerHTML = html;
         contentWrapper.appendChild(card);
 
-        // Inicializar DataTables con scroll horizontal/vertical sincronizado para el thead y tbody
-        if (window.jQuery && window.jQuery.fn.DataTable && preview_rows && preview_rows.length > 0) {
-            setTimeout(() => {
-                $(`#${uniqueTableId}`).DataTable({
-                    pageLength: 5,
-                    scrollX: true,
-                    scrollY: '240px',
-                    scrollCollapse: true,
-                    autoWidth: false,
-                    searching: true,
-                    paging: preview_rows.length > 5,
-                    info: true,
-                    language: {
-                        search: "Filtrar vista:",
-                        lengthMenu: "Mostrar _MENU_",
-                        info: "Mostrando _START_ a _END_ de _TOTAL_",
-                        paginate: {
-                            first: "Primero",
-                            last: "Último",
-                            next: "Sig.",
-                            previous: "Ant."
+        // Inicializar eventos del Constructor Interactivo de Gráficos
+        if (columns && columns.length > 0) {
+            const needsFieldSelection = Boolean(chart_config && chart_config.needs_field_selection);
+            setupInteractiveChartBuilder(card, dataset_id, safeId, preview_rows || [], autoExpandChart, needsFieldSelection);
+        }
+
+        // Función perezosa para inicializar DataTables solo cuando la tabla sea visible
+        let dataTableInitialized = false;
+        function ensureDataTableInit() {
+            if (dataTableInitialized) return;
+            if (window.jQuery && window.jQuery.fn.DataTable && preview_rows && preview_rows.length > 0) {
+                dataTableInitialized = true;
+                setTimeout(() => {
+                    $(`#${uniqueTableId}`).DataTable({
+                        pageLength: 5,
+                        scrollX: true,
+                        scrollY: '240px',
+                        scrollCollapse: true,
+                        autoWidth: false,
+                        searching: true,
+                        paging: preview_rows.length > 5,
+                        info: true,
+                        language: {
+                            search: "Filtrar vista:",
+                            lengthMenu: "Mostrar _MENU_",
+                            info: "Mostrando _START_ a _END_ de _TOTAL_",
+                            paginate: {
+                                first: "Primero",
+                                last: "Último",
+                                next: "Sig.",
+                                previous: "Ant."
+                            }
                         }
-                    }
-                });
-            }, 50);
+                    });
+                }, 40);
+            }
+        }
+
+        if (autoExpandTable) {
+            ensureDataTableInit();
+        }
+
+        // Botón para Mostrar / Ocultar la Tabla Interactiva bajo demanda
+        const tableToggleBtn = card.querySelector(`#${tableToggleBtnId}`);
+        const tablePanel = card.querySelector(`#${tablePanelId}`);
+        if (tableToggleBtn && tablePanel) {
+            tableToggleBtn.addEventListener('click', function () {
+                const isHidden = tablePanel.classList.contains('hidden');
+                if (isHidden) {
+                    tablePanel.classList.remove('hidden');
+                    tableToggleBtn.querySelector('span').textContent = 'Ocultar Tabla';
+                    ensureDataTableInit();
+                } else {
+                    tablePanel.classList.add('hidden');
+                    tableToggleBtn.querySelector('span').textContent = `Ver Tabla (${row_count})`;
+                }
+            });
+        }
+
+        // Botón para abrir el Centro de Entrenamiento IA precargando este SQL como Ejemplo de Oro (Few-Shot)
+        const teachSqlBtn = card.querySelector('.btn-teach-sql');
+        if (teachSqlBtn) {
+            teachSqlBtn.addEventListener('click', function () {
+                const learnedSql = this.getAttribute('data-sql') || sql || '';
+                openTrainingCenterWithSql(learnedSql);
+            });
         }
 
         scrollToBottom();
     }
 
     /**
-     * Agrega el mensaje del usuario al chat.
+     * Configura los eventos e inicializa el gráfico interactivo con Chart.js local (Flujo Guiado Opción A).
+     */
+    function setupInteractiveChartBuilder(cardElement, datasetId, safeId, fallbackRows, autoExpand, initialNeedsFieldSelection) {
+        const toggleBtn = cardElement.querySelector(`#chart_toggle_${safeId}`);
+        const chartPanel = cardElement.querySelector(`#chart_panel_${safeId}`);
+        const wizardBanner = cardElement.querySelector('.chart-wizard-banner');
+        const canvasStage = cardElement.querySelector('.chart-canvas-stage');
+        const confirmGenerateBtn = cardElement.querySelector('.btn-confirm-generate-chart');
+        const askAiChartBtn = cardElement.querySelector('.btn-ask-ai-chart');
+        const typeSelect = cardElement.querySelector('.chart-type-select');
+        const xSelect = cardElement.querySelector('.chart-x-select');
+        const aggSelect = cardElement.querySelector('.chart-agg-select');
+        const ySelect = cardElement.querySelector('.chart-y-select');
+        const downloadBtn = cardElement.querySelector('.btn-download-chart');
+        const chipButtons = cardElement.querySelectorAll('.chart-chip-btn');
+        const canvasElem = cardElement.querySelector(`#canvas_${safeId}`);
+        let isWaitingFieldConfirmation = Boolean(initialNeedsFieldSelection);
+
+        if (!chartPanel || !canvasElem) return;
+
+        // Obtener todas las filas del dataset (desde caché en memoria, endpoint JSON o fallback a preview_rows)
+        async function resolveDatasetRows() {
+            if (datasetRowsCache[datasetId]) {
+                return datasetRowsCache[datasetId];
+            }
+            try {
+                const res = await fetch(`/chat/dataset/${encodeURIComponent(datasetId)}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (res.ok) {
+                    const json = await res.json();
+                    if (json.success && json.data && Array.isArray(json.data.rows) && json.data.rows.length > 0) {
+                        datasetRowsCache[datasetId] = json.data.rows;
+                        return json.data.rows;
+                    }
+                }
+            } catch (e) {
+                console.warn('Usando preview_rows locales para el gráfico:', e);
+            }
+            datasetRowsCache[datasetId] = fallbackRows;
+            return fallbackRows;
+        }
+
+        function syncChipSelection(selectedX) {
+            chipButtons.forEach(btn => {
+                const col = btn.getAttribute('data-col');
+                if (col === selectedX) {
+                    btn.className = 'chart-chip-btn text-[11px] px-2.5 py-1.5 rounded-xl border font-semibold transition cursor-pointer flex items-center gap-1.5 bg-datamind-primary text-white border-datamind-primary shadow-2xs';
+                } else {
+                    btn.className = 'chart-chip-btn text-[11px] px-2.5 py-1.5 rounded-xl border font-semibold transition cursor-pointer flex items-center gap-1.5 bg-white text-slate-700 border-slate-200 hover:border-datamind-light hover:bg-datamind-light/20';
+                }
+            });
+        }
+
+        function revealChartCanvasStage() {
+            isWaitingFieldConfirmation = false;
+            if (wizardBanner) {
+                wizardBanner.classList.add('hidden');
+            }
+            if (canvasStage) {
+                canvasStage.classList.remove('hidden');
+            }
+            if (downloadBtn) {
+                downloadBtn.classList.remove('hidden');
+            }
+        }
+
+        async function updateChartVisualization(forceRender = false) {
+            if (!window.Chart) return;
+
+            const aggOp = aggSelect.value;
+            const xCol = xSelect.value;
+            ySelect.disabled = (aggOp === 'COUNT');
+            syncChipSelection(xCol);
+
+            // Si estamos en Paso 1 (Opción A: esperando que el usuario confirme los campos) y aún no ha confirmado,
+            // solo actualizamos los selectores/chips sin dibujar el gráfico prematuramente.
+            if (isWaitingFieldConfirmation && !forceRender) {
+                return;
+            }
+
+            revealChartCanvasStage();
+
+            const rows = await resolveDatasetRows();
+            if (!rows || rows.length === 0) return;
+
+            const rawType = typeSelect.value;
+            const yCol = ySelect.value;
+
+            // Agrupar y calcular datos según la selección del usuario
+            const grouped = new Map();
+            if (aggOp === 'RAW') {
+                rows.slice(0, 30).forEach((row, idx) => {
+                    const label = String(row[xCol] ?? `Fila ${idx + 1}`);
+                    const val = parseNumericCell(row[yCol]);
+                    grouped.set(`${label} (#${idx + 1})`, { sum: val, count: 1 });
+                });
+            } else {
+                rows.forEach(row => {
+                    const rawKey = row[xCol];
+                    const key = (rawKey === null || rawKey === undefined || String(rawKey).trim() === '')
+                        ? 'Sin especificar'
+                        : String(rawKey).trim();
+                    if (!grouped.has(key)) {
+                        grouped.set(key, { sum: 0, count: 0 });
+                    }
+                    const entry = grouped.get(key);
+                    entry.count += 1;
+                    if (aggOp !== 'COUNT') {
+                        entry.sum += parseNumericCell(row[yCol]);
+                    }
+                });
+            }
+
+            // Limitar a las 20 categorías principales para legibilidad óptima
+            const entries = Array.from(grouped.entries()).map(([label, stats]) => {
+                let value = stats.count;
+                if (aggOp === 'SUM' || aggOp === 'RAW') {
+                    value = Number(stats.sum.toFixed(2));
+                } else if (aggOp === 'AVG') {
+                    value = stats.count > 0 ? Number((stats.sum / stats.count).toFixed(2)) : 0;
+                }
+                return { label, value };
+            });
+
+            if (aggOp !== 'RAW') {
+                entries.sort((a, b) => b.value - a.value);
+            }
+            const topEntries = entries.slice(0, 20);
+
+            const labels = topEntries.map(e => e.label.length > 28 ? e.label.substring(0, 25) + '...' : e.label);
+            const values = topEntries.map(e => e.value);
+
+            const isHorizontal = (rawType === 'horizontalBar');
+            const chartJsType = isHorizontal ? 'bar' : rawType;
+            const isCircular = (chartJsType === 'doughnut' || chartJsType === 'pie');
+
+            const metricDescription = aggOp === 'COUNT'
+                ? `Cantidad de registros por ${xCol}`
+                : `${aggOp}(${yCol}) agrupado por ${xCol}`;
+
+            if (chartInstances[safeId]) {
+                chartInstances[safeId].destroy();
+            }
+
+            const bgColors = isCircular
+                ? labels.map((_, i) => DATAMIND_CHART_PALETTE[i % DATAMIND_CHART_PALETTE.length])
+                : (chartJsType === 'line' ? 'rgba(4, 118, 217, 0.14)' : 'rgba(4, 118, 217, 0.82)');
+
+            const borderColors = isCircular
+                ? '#ffffff'
+                : '#0476D9';
+
+            chartInstances[safeId] = new window.Chart(canvasElem.getContext('2d'), {
+                type: chartJsType,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: metricDescription,
+                        data: values,
+                        backgroundColor: bgColors,
+                        borderColor: borderColors,
+                        borderWidth: isCircular ? 2 : 2,
+                        borderRadius: chartJsType === 'bar' ? 6 : 0,
+                        fill: chartJsType === 'line',
+                        tension: chartJsType === 'line' ? 0.32 : 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: isHorizontal ? 'y' : 'x',
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: isCircular ? 'right' : 'top',
+                            labels: {
+                                font: { size: 11, weight: '600' },
+                                color: '#334155'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: metricDescription,
+                            font: { size: 13, weight: '700' },
+                            color: '#0f172a',
+                            padding: { bottom: 10 }
+                        }
+                    },
+                    scales: isCircular ? {} : {
+                        x: {
+                            ticks: { font: { size: 10 }, color: '#475569' },
+                            grid: { color: 'rgba(148, 163, 184, 0.15)' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { font: { size: 10 }, color: '#475569' },
+                            grid: { color: 'rgba(148, 163, 184, 0.2)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Botón mostrar/ocultar constructor de gráficos
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function () {
+                const isHidden = chartPanel.classList.contains('hidden');
+                if (isHidden) {
+                    chartPanel.classList.remove('hidden');
+                    toggleBtn.querySelector('span').textContent = 'Ocultar Gráfico';
+                    if (!isWaitingFieldConfirmation) {
+                        updateChartVisualization(true);
+                    }
+                } else {
+                    chartPanel.classList.add('hidden');
+                    toggleBtn.querySelector('span').textContent = 'Personalizar / Ver Gráfico';
+                }
+            });
+        }
+
+        // Botón Paso 1 -> Paso 2: Confirmar y generar el gráfico inmediatamente
+        if (confirmGenerateBtn) {
+            confirmGenerateBtn.addEventListener('click', function () {
+                updateChartVisualization(true);
+                if (window.toastr) {
+                    toastr.success(`Gráfico generado con el campo "${xSelect.value}"`, 'DataMind Visual Analytics');
+                }
+            });
+        }
+
+        // Botón Paso 1 -> Pedirle a la IA en el chat que genere y explique el gráfico con los campos elegidos
+        if (askAiChartBtn) {
+            askAiChartBtn.addEventListener('click', function () {
+                if (isProcessing || !promptInput) return;
+                const xCol = xSelect.value;
+                const aggOp = aggSelect.value;
+                const yCol = ySelect.value;
+                const typeLabel = typeSelect.options[typeSelect.selectedIndex]?.text.replace(/^[^\wÁÉÍÓÚáéíóú]+/, '').trim() || 'Barras';
+                const metricPhrase = aggOp === 'COUNT'
+                    ? 'contando la cantidad de registros'
+                    : `calculando ${aggOp} del campo ${yCol}`;
+
+                promptInput.value = `Genera el gráfico de ${typeLabel} agrupando por el campo ${xCol} y ${metricPhrase}`;
+                handleSendMessage();
+            });
+        }
+
+        // Eventos en los 4 selectores
+        [typeSelect, xSelect, aggSelect, ySelect].forEach(sel => {
+            if (sel) {
+                sel.addEventListener('change', function () {
+                    updateChartVisualization(false);
+                });
+            }
+        });
+
+        // Eventos en los chips rápidos del Eje X
+        chipButtons.forEach(btn => {
+            btn.addEventListener('click', function () {
+                const col = this.getAttribute('data-col');
+                if (col && xSelect) {
+                    xSelect.value = col;
+                    updateChartVisualization(false);
+                }
+            });
+        });
+
+        // Botón para descargar el gráfico como imagen PNG
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', function () {
+                const chart = chartInstances[safeId];
+                if (!chart) return;
+                const link = document.createElement('a');
+                link.download = `datamind_grafico_${datasetId}.png`;
+                link.href = canvasElem.toDataURL('image/png', 1.0);
+                link.click();
+                if (window.toastr) {
+                    toastr.success('Gráfico descargado en formato PNG.', 'DataMind Visual Analytics');
+                }
+            });
+        }
+
+        // Si el usuario ya especificó los campos exactos (needs_field_selection === false), renderizar el gráfico automáticamente
+        if (autoExpand && !isWaitingFieldConfirmation) {
+            setTimeout(() => {
+                updateChartVisualization(true);
+            }, 60);
+        }
+    }
+
+    /**
+     * Convierte de forma segura cualquier celda a número flotante para agregaciones de gráficos.
+     */
+    function parseNumericCell(val) {
+        if (val === null || val === undefined) return 0;
+        if (typeof val === 'number') return isFinite(val) ? val : 0;
+        const cleaned = String(val).replace(/[,$%\s]/g, '');
+        const parsed = parseFloat(cleaned);
+        return isFinite(parsed) ? parsed : 0;
+    }
+
+    /**
+     * Agrega el mensaje del usuario al chat renderizado como Vista Previa Markdown.
      */
     function appendUserMessage(text) {
         const row = document.createElement('div');
@@ -383,7 +1143,7 @@
                     <i class="fa-solid fa-user"></i>
                 </div>
                 <div class="bg-datamind-primary text-white p-4 rounded-2xl rounded-tr-xs shadow-sm border border-datamind-dark/20">
-                    <p class="text-sm leading-relaxed whitespace-pre-wrap">${escapeHtml(text)}</p>
+                    <div class="markdown-body markdown-user">${renderMarkdownPreview(text)}</div>
                 </div>
             </div>
         `;
@@ -392,7 +1152,7 @@
     }
 
     /**
-     * Crea la tarjeta base para el mensaje del asistente.
+     * Crea la tarjeta base para el mensaje del asistente con contenedor de Vista Previa Markdown.
      */
     function createAssistantMessageCard() {
         const row = document.createElement('div');
@@ -403,7 +1163,7 @@
                 <div class="h-9 w-9 rounded-xl bg-datamind-avatar text-white flex items-center justify-center text-sm font-bold shadow-sm shrink-0">
                     <i class="fa-solid fa-robot"></i>
                 </div>
-                <div class="bg-white border border-datamind-light/70 text-slate-800 p-5 rounded-2xl rounded-tl-xs shadow-xs grow flex flex-col">
+                <div class="bg-white border border-datamind-light/70 text-slate-800 p-5 rounded-2xl rounded-tl-xs shadow-xs grow flex flex-col overflow-hidden">
                     <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
                         <span class="text-xs font-bold text-datamind-dark flex items-center gap-1.5">
                             <span class="h-2 w-2 rounded-full bg-datamind-primary"></span> DataMind AI
@@ -411,7 +1171,7 @@
                         <div class="footer-badge"></div>
                     </div>
                     <div class="ai-content-wrapper flex flex-col">
-                        <div class="ai-text text-sm leading-relaxed text-slate-700">
+                        <div class="ai-text markdown-body markdown-ai text-sm leading-relaxed text-slate-700" data-raw-markdown="">
                             <div class="ai-loading-indicator inline-flex items-center gap-1.5 text-slate-400 py-1">
                                 <span class="h-2 w-2 rounded-full bg-datamind-primary animate-bounce"></span>
                                 <span class="h-2 w-2 rounded-full bg-datamind-secondary animate-bounce" style="animation-delay: 0.15s"></span>
@@ -431,6 +1191,249 @@
         const footerBadge = row.querySelector('.footer-badge');
 
         return { messageCard: row, textSpan, contentWrapper, footerBadge };
+    }
+
+    /**
+     * Motor Local de Vista Previa Markdown (100% Offline, Seguro contra XSS y compatible con Streaming).
+     * Soporta encabezados, negritas, cursivas, código en línea, bloques de código con botón copiar,
+     * listas ordenadas/desordenadas, citas (blockquotes), divisores y tablas GFM.
+     */
+    function renderMarkdownPreview(rawText) {
+        if (!rawText) return '';
+
+        let text = String(rawText).replace(/\r\n/g, '\n');
+
+        // 1. Extraer bloques de código cercados (```lang ... ```) incluso si aún se están cerrando en streaming
+        const codeBlocks = [];
+        const fenceRegex = /```([a-zA-Z0-9_-]*)\n?([\s\S]*?)(?:```|$)/g;
+        text = text.replace(fenceRegex, function (_, lang, codeContent) {
+            const languageLabel = (lang || 'code').toUpperCase();
+            const safeCode = escapeHtml(codeContent.replace(/\n$/, ''));
+            const blockHtml = `
+                <div class="md-code-block">
+                    <div class="md-code-header">
+                        <span><i class="fa-solid fa-terminal mr-1.5"></i>${escapeHtml(languageLabel)}</span>
+                        <button type="button" class="md-copy-btn">
+                            <i class="fa-regular fa-copy"></i> Copiar
+                        </button>
+                    </div>
+                    <pre class="md-code-pre"><code>${safeCode}</code></pre>
+                </div>
+            `;
+            const token = `\x00CODEBLOCK_${codeBlocks.length}\x00`;
+            codeBlocks.push(blockHtml);
+            return token;
+        });
+
+        // 2. Procesar línea por línea para bloques estructurales (Tablas, Listas, Citas, Títulos, Párrafos)
+        const lines = text.split('\n');
+        const htmlOut = [];
+        let inUl = false;
+        let inOl = false;
+        let inBlockquote = false;
+        let blockquoteLines = [];
+        let inTable = false;
+        let tableLines = [];
+        let paragraphLines = [];
+
+        function flushParagraph() {
+            if (paragraphLines.length > 0) {
+                htmlOut.push(`<p>${ paragraphLines.map(l => parseInlineMarkdown(l)).join('<br>') }</p>`);
+                paragraphLines = [];
+            }
+        }
+
+        function flushLists() {
+            if (inUl) { htmlOut.push('</ul>'); inUl = false; }
+            if (inOl) { htmlOut.push('</ol>'); inOl = false; }
+        }
+
+        function flushBlockquote() {
+            if (inBlockquote) {
+                htmlOut.push(`<blockquote>${ blockquoteLines.map(l => parseInlineMarkdown(l)).join('<br>') }</blockquote>`);
+                inBlockquote = false;
+                blockquoteLines = [];
+            }
+        }
+
+        function flushTable() {
+            if (inTable) {
+                htmlOut.push(buildMarkdownTable(tableLines));
+                inTable = false;
+                tableLines = [];
+            }
+        }
+
+        function flushAll() {
+            flushParagraph();
+            flushLists();
+            flushBlockquote();
+            flushTable();
+        }
+
+        for (let i = 0; i < lines.length; i++) {
+            const rawLine = lines[i];
+            const trimmed = rawLine.trim();
+
+            // Placeholder de bloque de código
+            if (/^\x00CODEBLOCK_\d+\x00$/.test(trimmed)) {
+                flushAll();
+                htmlOut.push(trimmed);
+                continue;
+            }
+
+            // Línea vacía
+            if (trimmed === '') {
+                flushAll();
+                continue;
+            }
+
+            // Tablas Markdown (| col1 | col2 |)
+            if (trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.length > 2) {
+                flushParagraph();
+                flushLists();
+                flushBlockquote();
+                inTable = true;
+                tableLines.push(trimmed);
+                continue;
+            } else if (inTable) {
+                flushTable();
+            }
+
+            // Línea divisoria horizontal (---, ***, ___)
+            if (/^(?:---|\*\*\*|___)\s*$/.test(trimmed)) {
+                flushAll();
+                htmlOut.push('<hr>');
+                continue;
+            }
+
+            // Encabezados (# a ####)
+            const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+            if (headingMatch) {
+                flushAll();
+                const level = headingMatch[1].length;
+                htmlOut.push(`<h${level}>${parseInlineMarkdown(headingMatch[2])}</h${level}>`);
+                continue;
+            }
+
+            // Citas (> texto)
+            const quoteMatch = trimmed.match(/^>\s?(.*)$/);
+            if (quoteMatch) {
+                flushParagraph();
+                flushLists();
+                inBlockquote = true;
+                blockquoteLines.push(quoteMatch[1]);
+                continue;
+            } else if (inBlockquote) {
+                flushBlockquote();
+            }
+
+            // Lista desordenada (- item o * item)
+            const ulMatch = rawLine.match(/^\s*[-*+]\s+(.+)$/);
+            if (ulMatch) {
+                flushParagraph();
+                if (inOl) { htmlOut.push('</ol>'); inOl = false; }
+                if (!inUl) { htmlOut.push('<ul>'); inUl = true; }
+                htmlOut.push(`<li>${parseInlineMarkdown(ulMatch[1])}</li>`);
+                continue;
+            }
+
+            // Lista ordenada (1. item)
+            const olMatch = rawLine.match(/^\s*\d+\.\s+(.+)$/);
+            if (olMatch) {
+                flushParagraph();
+                if (inUl) { htmlOut.push('</ul>'); inUl = false; }
+                if (!inOl) { htmlOut.push('<ol>'); inOl = true; }
+                htmlOut.push(`<li>${parseInlineMarkdown(olMatch[1])}</li>`);
+                continue;
+            }
+
+            // Si estábamos en lista y viene texto normal, cerrar lista
+            if (inUl || inOl) {
+                flushLists();
+            }
+
+            paragraphLines.push(rawLine);
+        }
+
+        flushAll();
+
+        // 3. Restaurar bloques de código
+        let finalHtml = htmlOut.join('\n');
+        finalHtml = finalHtml.replace(/\x00CODEBLOCK_(\d+)\x00/g, function (_, idx) {
+            return codeBlocks[parseInt(idx, 10)] || '';
+        });
+
+        return finalHtml;
+    }
+
+    /**
+     * Formatea elementos Markdown en línea (código `inline`, negritas **texto**, cursivas *texto*, tachado ~~texto~~ y enlaces).
+     */
+    function parseInlineMarkdown(line) {
+        if (!line) return '';
+
+        // 1. Extraer código en línea (`...`) antes de escapar y aplicar estilos
+        const inlineCodes = [];
+        let processed = String(line).replace(/`([^`]+)`/g, function (_, codeText) {
+            const token = `\x00INLINECODE_${inlineCodes.length}\x00`;
+            inlineCodes.push(`<code class="md-inline-code">${escapeHtml(codeText)}</code>`);
+            return token;
+        });
+
+        // 2. Escapar HTML peligroso
+        processed = escapeHtml(processed);
+
+        // 3. Negrita + Cursiva (***texto***)
+        processed = processed.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+
+        // 4. Negrita (**texto** o __texto__)
+        processed = processed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        processed = processed.replace(/__(.+?)__/g, '<strong>$1</strong>');
+
+        // 5. Cursiva (*texto* o _texto_)
+        processed = processed.replace(/(^|[^\*])\*([^\*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+
+        // 6. Tachado (~~texto~~)
+        processed = processed.replace(/~~(.+?)~~/g, '<del>$1</del>');
+
+        // 7. Enlaces seguros ([texto](https://...))
+        processed = processed.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline font-semibold hover:opacity-85">$1</a>');
+
+        // 8. Restaurar tokens de código en línea
+        processed = processed.replace(/\x00INLINECODE_(\d+)\x00/g, function (_, idx) {
+            return inlineCodes[parseInt(idx, 10)] || '';
+        });
+
+        return processed;
+    }
+
+    /**
+     * Construye una tabla HTML a partir de líneas Markdown GFM.
+     */
+    function buildMarkdownTable(lines) {
+        if (!lines || lines.length === 0) return '';
+
+        const parseRow = (rowStr) => rowStr
+            .replace(/^\||\|$/g, '')
+            .split('|')
+            .map(cell => cell.trim());
+
+        const headers = parseRow(lines[0]);
+        let startIdx = 1;
+
+        // Verificar si la segunda fila es separador (|---|---|)
+        if (lines.length > 1 && /^[\s|:-]+$/.test(lines[1])) {
+            startIdx = 2;
+        }
+
+        const thead = `<thead><tr>${headers.map(h => `<th>${parseInlineMarkdown(h)}</th>`).join('')}</tr></thead>`;
+        const bodyRows = lines.slice(startIdx).map(line => {
+            const cells = parseRow(line);
+            return `<tr>${cells.map(c => `<td>${parseInlineMarkdown(c)}</td>`).join('')}</tr>`;
+        }).join('');
+
+        return `<div class="md-table-wrapper"><table class="md-table">${thead}<tbody>${bodyRows}</tbody></table></div>`;
     }
 
     /**
@@ -469,6 +1472,290 @@
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
+    }
+
+    // =========================================================================
+    // CENTRO DE ENTRENAMIENTO IA ("🎓 Entrenar IA" - Fase 16)
+    // =========================================================================
+    const aiTrainingModal = document.getElementById('aiTrainingModal');
+    const btnOpenTrainingCenter = document.getElementById('btnOpenTrainingCenter');
+    const btnCloseTrainingModal = document.getElementById('btnCloseTrainingModal');
+    const trainingTabBtns = document.querySelectorAll('.training-tab-btn');
+    const trainingTabPanes = document.querySelectorAll('.training-tab-pane');
+    const templateTypeBtns = document.querySelectorAll('.template-type-btn');
+    const trainCategoryInput = document.getElementById('trainCategoryInput');
+    const trainTitleInput = document.getElementById('trainTitleInput');
+    const trainContentInput = document.getElementById('trainContentInput');
+    const customRelationFields = document.getElementById('customRelationFields');
+    const sqlExampleFieldBox = document.getElementById('sqlExampleFieldBox');
+    const trainSourceTable = document.getElementById('trainSourceTable');
+    const trainSourceCol = document.getElementById('trainSourceCol');
+    const trainTargetTable = document.getElementById('trainTargetTable');
+    const trainTargetCol = document.getElementById('trainTargetCol');
+    const trainLabelCol = document.getElementById('trainLabelCol');
+    const trainSqlQueryInput = document.getElementById('trainSqlQueryInput');
+    const btnFillExampleTemplate = document.getElementById('btnFillExampleTemplate');
+    const btnSaveTrainingRule = document.getElementById('btnSaveTrainingRule');
+    const btnRefreshRulesList = document.getElementById('btnRefreshRulesList');
+    const learnedRulesContainer = document.getElementById('learnedRulesContainer');
+    const learnedRulesCount = document.getElementById('learnedRulesCount');
+
+    function switchTrainingTab(targetTabId) {
+        trainingTabPanes.forEach(pane => {
+            if (pane.id === targetTabId) {
+                pane.classList.remove('hidden');
+            } else {
+                pane.classList.add('hidden');
+            }
+        });
+        trainingTabBtns.forEach(btn => {
+            const tab = btn.getAttribute('data-tab');
+            if (tab === targetTabId) {
+                btn.className = 'training-tab-btn px-3.5 py-2 rounded-t-xl text-xs font-bold bg-white text-datamind-primary border-t border-x border-slate-200 cursor-pointer';
+            } else {
+                btn.className = 'training-tab-btn px-3.5 py-2 rounded-t-xl text-xs font-semibold text-slate-600 hover:text-datamind-dark cursor-pointer';
+            }
+        });
+    }
+
+    function selectTrainingCategory(cat) {
+        if (!trainCategoryInput) return;
+        trainCategoryInput.value = cat;
+
+        templateTypeBtns.forEach(btn => {
+            const bCat = btn.getAttribute('data-category');
+            if (bCat === cat) {
+                btn.className = 'template-type-btn p-3 rounded-2xl border-2 border-datamind-primary bg-datamind-light/20 text-left transition cursor-pointer';
+            } else {
+                btn.className = 'template-type-btn p-3 rounded-2xl border border-slate-200 hover:border-datamind-light bg-white text-left transition cursor-pointer';
+            }
+        });
+
+        if (customRelationFields) {
+            customRelationFields.classList.toggle('hidden', cat !== 'custom_relation');
+        }
+        if (sqlExampleFieldBox) {
+            sqlExampleFieldBox.classList.toggle('hidden', cat !== 'sql_example');
+        }
+    }
+
+    function openTrainingCenterWithSql(sqlQuery) {
+        if (!aiTrainingModal) return;
+        aiTrainingModal.classList.remove('hidden');
+        switchTrainingTab('tabTeachForm');
+        selectTrainingCategory('sql_example');
+        if (trainSqlQueryInput) trainSqlQueryInput.value = sqlQuery || '';
+        if (trainTitleInput) trainTitleInput.value = 'Consulta SQL Verificada de Negocio';
+        if (trainContentInput) trainContentInput.value = 'Usa este patrón SELECT ... JOIN cuando el usuario consulte o grafique estas tablas.';
+        loadLearnedRules();
+    }
+
+    async function loadLearnedRules() {
+        if (!learnedRulesContainer) return;
+        try {
+            const connId = activeConnectionSelect ? activeConnectionSelect.value : '';
+            const res = await fetch(`/chat/training/rules${connId ? '?connection_id=' + encodeURIComponent(connId) : ''}`, {
+                headers: { 'Accept': 'application/json' }
+            });
+            const json = await res.json();
+            const rules = (json.data && json.data.rules) ? json.data.rules : [];
+
+            if (learnedRulesCount) {
+                learnedRulesCount.textContent = String(rules.length);
+            }
+
+            if (rules.length === 0) {
+                learnedRulesContainer.innerHTML = `
+                    <div class="text-center py-8 text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200/80">
+                        Aún no has registrado cápsulas personalizadas. Usa la Pestaña 1 o escribe una regla directamente en el chat.
+                    </div>
+                `;
+                return;
+            }
+
+            const badgeLabels = {
+                custom_relation: '🔗 Relación JOIN',
+                business_rule: '📖 Diccionario / Estado',
+                kpi_formula: '📐 Fórmula / KPI',
+                sql_example: '🏆 Ejemplo SQL'
+            };
+
+            learnedRulesContainer.innerHTML = rules.map(rule => `
+                <div class="p-3.5 rounded-2xl border border-slate-200 bg-white flex items-start justify-between gap-3 hover:border-datamind-light transition">
+                    <div class="space-y-1 min-w-0 flex-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full badge-datamind">
+                                ${escapeHtml(badgeLabels[rule.category] || rule.category)}
+                            </span>
+                            <h5 class="text-xs font-bold text-slate-800 truncate">${escapeHtml(rule.title)}</h5>
+                        </div>
+                        <p class="text-xs text-slate-600 whitespace-pre-line">${escapeHtml(rule.content)}</p>
+                    </div>
+                    <button type="button" class="btn-delete-rule text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition cursor-pointer shrink-0"
+                            data-rule-id="${escapeHtml(rule.id)}" title="Eliminar esta regla">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                </div>
+            `).join('');
+        } catch (err) {
+            console.warn('Error cargando reglas aprendidas:', err);
+        }
+    }
+
+    if (btnOpenTrainingCenter && aiTrainingModal) {
+        btnOpenTrainingCenter.addEventListener('click', function () {
+            aiTrainingModal.classList.remove('hidden');
+            loadLearnedRules();
+        });
+    }
+
+    if (btnCloseTrainingModal && aiTrainingModal) {
+        btnCloseTrainingModal.addEventListener('click', function () {
+            aiTrainingModal.classList.add('hidden');
+        });
+    }
+
+    trainingTabBtns.forEach(btn => {
+        btn.addEventListener('click', function () {
+            const tab = this.getAttribute('data-tab');
+            if (tab) {
+                switchTrainingTab(tab);
+                if (tab === 'tabLearnedList') {
+                    loadLearnedRules();
+                }
+            }
+        });
+    });
+
+    templateTypeBtns.forEach(btn => {
+        btn.addEventListener('click', function () {
+            const cat = this.getAttribute('data-category');
+            if (cat) selectTrainingCategory(cat);
+        });
+    });
+
+    if (btnFillExampleTemplate) {
+        btnFillExampleTemplate.addEventListener('click', function () {
+            const cat = trainCategoryInput ? trainCategoryInput.value : 'custom_relation';
+            if (cat === 'custom_relation') {
+                if (trainTitleInput) trainTitleInput.value = 'Relación users con companies por current_company_id';
+                if (trainSourceTable) trainSourceTable.value = 'users';
+                if (trainSourceCol) trainSourceCol.value = 'current_company_id';
+                if (trainTargetTable) trainTargetTable.value = 'companies';
+                if (trainTargetCol) trainTargetCol.value = 'id';
+                if (trainLabelCol) trainLabelCol.value = 'name';
+                if (trainContentInput) {
+                    trainContentInput.value = 'La tabla users se relaciona con la tabla companies uniendo users.current_company_id = companies.id. Cuando el usuario pida datos o gráficos por empresa, nunca muestres current_company_id; haz siempre JOIN companies y muestra companies.name.';
+                }
+            } else if (cat === 'business_rule') {
+                if (trainTitleInput) trainTitleInput.value = 'Diccionario de estados de rollos y usuarios';
+                if (trainContentInput) {
+                    trainContentInput.value = 'Cuando el usuario pregunte por registros activos, filtra status = 1 (o estado = 1). En gráficos, muestra "Activo" cuando sea 1 e "Inactivo" cuando sea 0 usando CASE WHEN.';
+                }
+            } else if (cat === 'kpi_formula') {
+                if (trainTitleInput) trainTitleInput.value = 'Cálculo de Peso Neto y Porcentaje de Merma';
+                if (trainContentInput) {
+                    trainContentInput.value = 'El Peso Neto se calcula restando peso_bruto - peso_tara. El Porcentaje de Merma se calcula como ((peso_desperdicio / peso_bruto) * 100).';
+                }
+            } else if (cat === 'sql_example') {
+                if (trainTitleInput) trainTitleInput.value = 'Total de usuarios agrupados por nombre de empresa';
+                if (trainSqlQueryInput) {
+                    trainSqlQueryInput.value = 'SELECT c.name AS nombre_empresa, COUNT(u.id) AS total_usuarios FROM users u INNER JOIN companies c ON u.current_company_id = c.id GROUP BY c.name';
+                }
+                if (trainContentInput) {
+                    trainContentInput.value = 'Ejemplo verificado para contar o graficar usuarios mostrando el nombre real de la empresa en lugar del ID.';
+                }
+            }
+        });
+    }
+
+    if (btnSaveTrainingRule) {
+        btnSaveTrainingRule.addEventListener('click', async function () {
+            const cat = trainCategoryInput ? trainCategoryInput.value : 'business_rule';
+            const title = (trainTitleInput ? trainTitleInput.value : '').trim();
+            const content = (trainContentInput ? trainContentInput.value : '').trim();
+            const connId = activeConnectionSelect ? activeConnectionSelect.value : null;
+
+            if (!title || !content) {
+                if (window.toastr) toastr.warning('Completa el título y la explicación para enseñar a la IA.', 'Entrenar IA');
+                return;
+            }
+
+            const payload = {
+                category: cat,
+                title: title,
+                content: content,
+                connection_id: connId || null,
+                source_table: trainSourceTable ? trainSourceTable.value.trim() : null,
+                source_column: trainSourceCol ? trainSourceCol.value.trim() : null,
+                target_table: trainTargetTable ? trainTargetTable.value.trim() : null,
+                target_column: trainTargetCol ? trainTargetCol.value.trim() : 'id',
+                label_column: trainLabelCol ? trainLabelCol.value.trim() : null,
+                sql_query: trainSqlQueryInput ? trainSqlQueryInput.value.trim() : null,
+            };
+
+            const origText = btnSaveTrainingRule.innerHTML;
+            btnSaveTrainingRule.disabled = true;
+            btnSaveTrainingRule.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Vectorizando...';
+
+            try {
+                const res = await fetch('/chat/training/train', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (!res.ok || !json.success) {
+                    throw new Error(json.message || 'No se pudo guardar la regla.');
+                }
+
+                if (window.toastr) {
+                    toastr.success('¡Conocimiento vectorizado y aprendido por la IA en pgvector!', 'Centro de Entrenamiento IA');
+                }
+                await loadLearnedRules();
+                switchTrainingTab('tabLearnedList');
+            } catch (err) {
+                if (window.toastr) {
+                    toastr.error(err.message || 'Error al vectorizar la regla.', 'Entrenar IA');
+                }
+            } finally {
+                btnSaveTrainingRule.disabled = false;
+                btnSaveTrainingRule.innerHTML = origText;
+            }
+        });
+    }
+
+    if (btnRefreshRulesList) {
+        btnRefreshRulesList.addEventListener('click', loadLearnedRules);
+    }
+
+    if (learnedRulesContainer) {
+        learnedRulesContainer.addEventListener('click', async function (e) {
+            const delBtn = e.target.closest('.btn-delete-rule');
+            if (!delBtn) return;
+            const ruleId = delBtn.getAttribute('data-rule-id');
+            if (!ruleId) return;
+
+            try {
+                const res = await fetch(`/chat/training/rules/${encodeURIComponent(ruleId)}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    }
+                });
+                if (res.ok) {
+                    if (window.toastr) toastr.info('Regla eliminada de pgvector.', 'Entrenar IA');
+                    await loadLearnedRules();
+                }
+            } catch (err) {
+                console.warn('Error eliminando regla:', err);
+            }
+        });
     }
 
 })();
