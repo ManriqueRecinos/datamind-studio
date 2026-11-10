@@ -15,6 +15,8 @@
     --datamind-secondary: #4B89BF;
     --datamind-accent-light: #99D0F2;
     --datamind-bg-neutral: #F2F2F2;
+    --datamind-font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --datamind-font-size: 14px;
 
     /* Canales RGB para composiciones con opacidad (rgba) */
     --datamind-primary-rgb: 4, 118, 217;
@@ -24,17 +26,71 @@
     --datamind-bg-neutral-rgb: 242, 242, 242;
 
     /* Variantes Semánticas y de Interacción */
-    --datamind-primary-soft: rgba(4, 118, 217, 0.08);
-    --datamind-primary-medium: rgba(4, 118, 217, 0.16);
-    --datamind-secondary-soft: rgba(75, 137, 191, 0.12);
-    --datamind-accent-soft: rgba(153, 208, 242, 0.25);
-    --datamind-accent-border: rgba(153, 208, 242, 0.65);
-    --datamind-focus-ring: rgba(153, 208, 242, 0.50);
+    --datamind-primary-soft: rgba(var(--datamind-primary-rgb), 0.08);
+    --datamind-primary-medium: rgba(var(--datamind-primary-rgb), 0.16);
+    --datamind-secondary-soft: rgba(var(--datamind-secondary-rgb), 0.12);
+    --datamind-accent-soft: rgba(var(--datamind-accent-light-rgb), 0.25);
+    --datamind-accent-border: rgba(var(--datamind-accent-light-rgb), 0.65);
+    --datamind-focus-ring: rgba(var(--datamind-accent-light-rgb), 0.50);
 
-    /* Degradados Corporativos */
-    --datamind-gradient-primary: linear-gradient(135deg, #0468BF 0%, #0476D9 60%, #4B89BF 100%);
-    --datamind-gradient-hero: linear-gradient(135deg, #033f75 0%, #0468BF 45%, #0476D9 85%, #4B89BF 100%);
-    --datamind-gradient-avatar: linear-gradient(135deg, #0468BF 0%, #4B89BF 100%);
+    /* Degradados Corporativos Dinámicos */
+    --datamind-gradient-primary: linear-gradient(135deg, var(--datamind-primary-dark) 0%, var(--datamind-primary) 60%, var(--datamind-secondary) 100%);
+    --datamind-gradient-hero: linear-gradient(135deg, var(--datamind-primary-dark) 0%, var(--datamind-primary) 65%, var(--datamind-secondary) 100%);
+    --datamind-gradient-avatar: linear-gradient(135deg, var(--datamind-primary-dark) 0%, var(--datamind-secondary) 100%);
+}
+
+html {
+    font-size: var(--datamind-font-size, 14px);
+}
+
+body {
+    font-family: var(--datamind-font-family, 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif) !important;
+    background-color: var(--datamind-bg-neutral);
+}
+
+/* Soporte Modo Oscuro (Dark Mode para superficies, bordes y textos) */
+html.dark body {
+    background-color: #0b1120 !important;
+    color: #e2e8f0 !important;
+}
+
+html.dark header,
+html.dark .ecosystem-subnav,
+html.dark aside > div,
+html.dark .ecosystem-card,
+html.dark section.bg-white,
+html.dark div.bg-white {
+    background-color: #111827 !important;
+    border-color: rgba(var(--datamind-accent-light-rgb), 0.22) !important;
+    color: #e2e8f0 !important;
+}
+
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-slate-700,
+html.dark .markdown-ai,
+html.dark .markdown-ai strong {
+    color: #f1f5f9 !important;
+}
+
+html.dark .text-slate-600,
+html.dark .text-slate-500 {
+    color: #94a3b8 !important;
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-slate-50\/70,
+html.dark .bg-datamind-neutral,
+html.dark .bg-datamind-neutral\/85 {
+    background-color: #1e293b !important;
+}
+
+html.dark input:not([type="color"]),
+html.dark select,
+html.dark textarea {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    border-color: rgba(var(--datamind-accent-light-rgb), 0.30) !important;
 }
 
 /* Clases Utilitarias Globales de la Paleta DataMind */

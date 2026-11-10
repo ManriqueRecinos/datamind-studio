@@ -5,14 +5,13 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
-@theme {
-    --font-sans: 'Instrument Sans', 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+@theme inline {
+    --font-sans: var(--datamind-font-family, 'Instrument Sans', 'Inter', ui-sans-serif, system-ui, sans-serif);
 
-    /* Paleta Corporativa DataMind */
-    --color-datamind-primary: #0476D9;
-    --color-datamind-dark: #0468BF;
-    --color-datamind-secondary: #4B89BF;
-    --color-datamind-light: #99D0F2;
-    --color-datamind-neutral: #F2F2F2;
+    /* Paleta Corporativa DataMind vinculada dinámicamente a Variables CSS */
+    --color-datamind-primary: var(--datamind-primary, #0476D9);
+    --color-datamind-dark: var(--datamind-primary-dark, #0468BF);
+    --color-datamind-secondary: var(--datamind-secondary, #4B89BF);
+    --color-datamind-light: var(--datamind-accent-light, #99D0F2);
+    --color-datamind-neutral: var(--datamind-bg-neutral, #F2F2F2);
 }

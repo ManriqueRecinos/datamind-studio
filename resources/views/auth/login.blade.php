@@ -24,28 +24,17 @@
         }
     </style>
 </head>
-<body class="min-h-full flex flex-col justify-between text-slate-800 antialiased selection:bg-datamind-primary selection:text-white">
+<body class="min-h-full flex flex-col justify-center items-center text-slate-800 antialiased selection:bg-datamind-primary selection:text-white py-12 px-4 sm:px-6">
 
-    <!-- Navbar Superior Minimalista -->
-    <header class="bg-white border-b border-datamind-light/60 shadow-2xs">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <a href="{{ url('/') }}" class="flex items-center gap-3">
-                <div class="h-10 w-10 rounded-xl bg-datamind-gradient flex items-center justify-center text-white shadow-md font-bold text-xl">
-                    <i class="fa-solid fa-brain"></i>
-                </div>
-                <div>
-                    <span class="text-lg font-bold tracking-tight text-slate-900">DATAMIND <span class="text-datamind-primary">STUDIO</span></span>
-                    <span class="ml-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full badge-datamind">
-                        Acceso de Usuario
-                    </span>
-                </div>
-            </a>
-
-            <a href="{{ url('/') }}" class="text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-700 hover:text-datamind-primary hover:bg-datamind-neutral border border-slate-200 transition flex items-center gap-1.5">
-                <i class="fa-solid fa-house text-datamind-secondary"></i> Volver al Inicio
-            </a>
-        </div>
-    </header>
+    <!-- Sin Navbar en Login: Acceso directo y limpio -->
+    <div class="w-full max-w-md mx-auto mb-6 flex items-center justify-between">
+        <a href="{{ route('chat.index') }}" class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-datamind-primary transition">
+            <i class="fa-solid fa-arrow-left"></i> Ir a la Consola de Chat (Modo Libre)
+        </a>
+        <a href="{{ url('/') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition">
+            <i class="fa-solid fa-house"></i> Inicio
+        </a>
+    </div>
 
     <!-- Contenedor Central de Login / Registro -->
     <main class="flex-1 flex items-center justify-center px-4 py-10">
@@ -210,32 +199,6 @@
     </footer>
 
     <script src="{{ asset('js/global_js/all.min.js') }}"></script>
-    <script>
-        function switchAuthTab(tab) {
-            const loginForm = document.getElementById('loginFormPanel');
-            const registerForm = document.getElementById('registerFormPanel');
-            const tabLoginBtn = document.getElementById('tabLoginBtn');
-            const tabRegisterBtn = document.getElementById('tabRegisterBtn');
-
-            if (tab === 'register') {
-                loginForm.classList.add('hidden');
-                registerForm.classList.remove('hidden');
-                tabRegisterBtn.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-datamind-primary text-white shadow-xs transition cursor-pointer';
-                tabLoginBtn.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-slate-600 hover:text-datamind-primary transition cursor-pointer';
-            } else {
-                registerForm.classList.add('hidden');
-                loginForm.classList.remove('hidden');
-                tabLoginBtn.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-datamind-primary text-white shadow-xs transition cursor-pointer';
-                tabRegisterBtn.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-slate-600 hover:text-datamind-primary transition cursor-pointer';
-            }
-        }
-
-        function fillDemoCredentials(email, password) {
-            switchAuthTab('login');
-            document.getElementById('loginEmail').value = email;
-            document.getElementById('loginPassword').value = password;
-            document.getElementById('loginFormPanel').submit();
-        }
-    </script>
+    <script src="{{ asset('js/auth_helper.js') }}"></script>
 </body>
 </html>
