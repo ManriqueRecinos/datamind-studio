@@ -15,7 +15,7 @@ class AuthController extends Controller
     public function showLogin()
     {
         if (Auth::check()) {
-            return redirect()->route('chat.index');
+            return redirect()->route('hub.index');
         }
 
         return view('auth.login');
@@ -33,9 +33,17 @@ class AuthController extends Controller
 
         $remember = $request->boolean('remember', true);
 
-        if (Auth::attempt($credentials, $remember)) {
+        if (Auth::attempt(array_merge($credentials, ['is_active' => true]), $remember)) {
             $request->session()->regenerate();
-            return redirect()->intended(route('chat.index'));
+            return redirect()->intended(route('hub.index'));
+        }
+
+        // Verificar si existe el usuario pero se encuentra inactivo
+        $inactiveUser = User::where('email', $credentials['email'])->where('is_active', false)->first();
+        if ($inactiveUser && Hash::check($credentials['password'], $inactiveUser->password)) {
+            return back()->withErrors([
+                'email' => 'Esta cuenta de usuario ha sido inactivada por un administrador.',
+            ])->onlyInput('email');
         }
 
         return back()->withErrors([
@@ -63,7 +71,7 @@ class AuthController extends Controller
         Auth::login($user, true);
         $request->session()->regenerate();
 
-        return redirect()->route('chat.index');
+        return redirect()->route('hub.index');
     }
 
     /**
