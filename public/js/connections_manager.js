@@ -1,6 +1,6 @@
 /**
  * DataMind Studio - Gestor Dinámico de Bases de Datos y Vectorización Selectiva
- * Soporta PostgreSQL y MariaDB/MySQL con exploración interactiva de tablas y pgvector.
+ * Soporta PostgreSQL Multi-Esquema y MariaDB/MySQL con exploración interactiva de tablas y pgvector.
  */
 
 (function () {
@@ -10,6 +10,7 @@
     let currentConnectionName = '';
     let allDetectedTables = [];
     let selectedTableNames = new Set();
+    let currentSchemaFilter = 'all';
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
@@ -28,6 +29,7 @@
     const tablesGridWrapper = document.getElementById('tablesGridWrapper');
     const tablesListBody = document.getElementById('tablesListBody');
     const tableSearchInput = document.getElementById('tableSearchInput');
+    const schemaFilterSelect = document.getElementById('schemaFilterSelect');
 
     const btnVectorizeSelected = document.getElementById('btnVectorizeSelected');
     const btnVectorizeText = document.getElementById('btnVectorizeText');
@@ -55,6 +57,13 @@
 
         if (btnVectorizeSelected) {
             btnVectorizeSelected.addEventListener('click', handleVectorizeSelected);
+        }
+
+        if (schemaFilterSelect) {
+            schemaFilterSelect.addEventListener('change', function () {
+                currentSchemaFilter = this.value;
+                renderTablesRows(tableSearchInput?.value.trim().toLowerCase() || '');
+            });
         }
 
         if (tableSearchInput) {
@@ -171,7 +180,7 @@
             const json = await response.json();
             if (response.ok && json.success) {
                 const info = json.data;
-                testResultBanner.className = 'p-3 rounded-xl text-xs border bg-emerald-50 border-emerald-200 text-emerald-800';
+                testResultBanner.className = 'p-3 rounded-none text-xs border bg-emerald-50 border-emerald-200 text-emerald-800';
                 testResultBanner.innerHTML = `
                     <div class="font-bold flex items-center gap-1.5">
                         <i class="fa-solid fa-circle-check text-emerald-600"></i> ¡Conexión Exitosa! (${info.latency_ms} ms)
@@ -186,7 +195,7 @@
                 throw new Error(json.message || 'Fallo al conectar con el servidor de base de datos.');
             }
         } catch (err) {
-            testResultBanner.className = 'p-3 rounded-xl text-xs border bg-red-50 border-red-200 text-red-700';
+            testResultBanner.className = 'p-3 rounded-none text-xs border bg-red-50 border-red-200 text-red-700';
             testResultBanner.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> ${escapeHtml(err.message)}`;
             testResultBanner.classList.remove('hidden');
             if (window.toastr) toastr.error(err.message, 'Error de Conexión');
@@ -248,7 +257,7 @@
         tablesEmptyPlaceholder.innerHTML = `
             <div class="py-12 text-center">
                 <i class="fa-solid fa-circle-notch fa-spin text-3xl text-datamind-primary mb-3"></i>
-                <p class="text-xs font-semibold text-slate-600">Inspeccionando todas las tablas y columnas en tiempo real...</p>
+                <p class="text-xs font-semibold text-slate-600">Inspeccionando todos los esquemas y tablas en tiempo real...</p>
             </div>
         `;
         tablesGridWrapper.classList.add('hidden');
@@ -272,6 +281,22 @@
             explorerStatsBadge.textContent = `${payload.total_tables} tablas detectadas • ${payload.vectorized_count} vectorizadas`;
             explorerStatsBadge.classList.remove('hidden');
 
+            // Poblar selector dinámico de esquemas
+            if (schemaFilterSelect) {
+                const schemaSet = new Set();
+                allDetectedTables.forEach(t => {
+                    const s = t.schema_name || 'public';
+                    schemaSet.add(s);
+                });
+                const schemas = Array.from(schemaSet).sort();
+                schemaFilterSelect.innerHTML = '<option value="all">Todos los Esquemas (' + schemas.length + ')</option>' +
+                    schemas.map(s => {
+                        const count = allDetectedTables.filter(x => (x.schema_name || 'public') === s).length;
+                        return `<option value="${escapeHtml(s)}">${escapeHtml(s)} (${count})</option>`;
+                    }).join('');
+                currentSchemaFilter = 'all';
+            }
+
             tablesEmptyPlaceholder.classList.add('hidden');
             explorerToolbar.classList.remove('hidden');
             tablesGridWrapper.classList.remove('hidden');
@@ -291,8 +316,14 @@
         if (!tablesListBody) return;
 
         const filtered = allDetectedTables.filter(t => {
+            const schema = t.schema_name || 'public';
+            if (currentSchemaFilter !== 'all' && schema !== currentSchemaFilter) {
+                return false;
+            }
+
             if (!filterText) return true;
             return t.table_name.toLowerCase().includes(filterText) ||
+                   schema.toLowerCase().includes(filterText) ||
                    (t.column_names_preview || '').toLowerCase().includes(filterText);
         });
 
@@ -300,7 +331,7 @@
             tablesListBody.innerHTML = `
                 <tr>
                     <td colspan="5" class="py-8 text-center text-slate-400 text-xs">
-                        No se encontraron tablas que coincidan con "${escapeHtml(filterText)}".
+                        No se encontraron tablas en el esquema seleccionado o con el filtro "${escapeHtml(filterText)}".
                     </td>
                 </tr>
             `;
@@ -309,10 +340,11 @@
 
         tablesListBody.innerHTML = filtered.map(t => {
             const isChecked = selectedTableNames.has(t.table_name);
+            const schema = t.schema_name || 'public';
             const relatedList = Array.isArray(t.related_tables) ? t.related_tables : [];
             const relationBadge = relatedList.length > 0
                 ? `<div class="mt-1 flex flex-wrap items-center gap-1">
-                       <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-datamind-light/30 text-datamind-dark border border-datamind-light/80"
+                       <span class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-none text-[10px] font-semibold bg-datamind-light/30 text-datamind-dark border border-datamind-light/80"
                              title="Relaciones detectadas automáticamente para consultas JOIN: ${escapeHtml(relatedList.join(', '))}">
                            <i class="fa-solid fa-diagram-project text-[9px] text-datamind-primary"></i>
                            JOIN: ${escapeHtml(relatedList.slice(0, 3).join(', '))}${relatedList.length > 3 ? ` (+${relatedList.length - 3})` : ''}
@@ -320,27 +352,34 @@
                    </div>`
                 : '';
 
+            const schemaBadge = `<span class="inline-block px-1.5 py-0.2 mr-1 rounded-none text-[9px] font-bold font-mono uppercase bg-slate-100 text-slate-600 border border-slate-200">
+                ${escapeHtml(schema)}
+            </span>`;
+
             const statusBadge = t.is_vectorized
-                ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-none text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                        <i class="fa-solid fa-check text-[10px]"></i> Vectorizada
                    </span>`
-                : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500">
+                : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-none text-[11px] font-medium bg-slate-100 text-slate-500">
                        Pendiente
                    </span>`;
 
             return `
-                <tr class="table-row-item hover:bg-datamind-light/20 transition cursor-pointer ${isChecked ? 'bg-datamind-light/25' : ''}"
+                <tr class="table-row-item hover:bg-slate-50/70 transition cursor-pointer ${isChecked ? 'bg-slate-50' : ''}"
                     data-table-name="${escapeHtml(t.table_name)}">
                     <td class="py-2.5 px-4 text-center">
-                        <input type="checkbox" class="chk-table-item h-4 w-4 rounded accent-[#0476D9] cursor-pointer"
+                        <input type="checkbox" class="chk-table-item h-4 w-4 rounded-none accent-[#0476D9] cursor-pointer"
                             value="${escapeHtml(t.table_name)}" ${isChecked ? 'checked' : ''}>
                     </td>
                     <td class="py-2.5 px-4">
-                        <div class="font-mono font-bold text-datamind-dark">${escapeHtml(t.table_name)}</div>
+                        <div class="font-mono font-bold text-slate-900 flex items-center gap-1">
+                            ${schemaBadge}
+                            <span>${escapeHtml(t.table_name)}</span>
+                        </div>
                         ${relationBadge}
                     </td>
                     <td class="py-2.5 px-4 text-center">
-                        <span class="px-2 py-0.5 rounded bg-datamind-neutral text-slate-700 font-semibold text-[11px]">
+                        <span class="px-2 py-0.5 rounded-none bg-slate-100 text-slate-700 font-semibold text-[11px]">
                             ${t.columns_count} cols
                         </span>
                     </td>
@@ -375,10 +414,10 @@
     function toggleTableSelection(tableName, checked, rowElem) {
         if (checked) {
             selectedTableNames.add(tableName);
-            rowElem?.classList.add('bg-datamind-light/25');
+            rowElem?.classList.add('bg-slate-50');
         } else {
             selectedTableNames.delete(tableName);
-            rowElem?.classList.remove('bg-datamind-light/25');
+            rowElem?.classList.remove('bg-slate-50');
         }
         updateVectorizeButtonState();
     }
@@ -386,8 +425,12 @@
     function toggleVisibleCheckboxes(checked) {
         const filterText = tableSearchInput?.value.trim().toLowerCase() || '';
         allDetectedTables.forEach(t => {
+            const schema = t.schema_name || 'public';
+            if (currentSchemaFilter !== 'all' && schema !== currentSchemaFilter) return;
+
             if (!filterText ||
                 t.table_name.toLowerCase().includes(filterText) ||
+                schema.toLowerCase().includes(filterText) ||
                 (t.column_names_preview || '').toLowerCase().includes(filterText)) {
                 if (checked) {
                     selectedTableNames.add(t.table_name);

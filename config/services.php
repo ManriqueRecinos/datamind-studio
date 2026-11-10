@@ -38,6 +38,7 @@ return [
     'fastapi' => [
         'url' => env('FASTAPI_URL', 'http://127.0.0.1:8000/api/v1'),
         'key' => env('FASTAPI_KEY', 'datamind_api_secret_token_2026'),
+        'timeout' => (int) env('FASTAPI_TIMEOUT', 120),
     ],
 
 ];

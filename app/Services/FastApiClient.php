@@ -20,7 +20,7 @@ class FastApiClient
         }
         $this->baseUrl = rtrim(config('services.fastapi.url', 'http://127.0.0.1:8000/api/v1'), '/');
         $this->apiKey = config('services.fastapi.key', 'datamind_api_secret_token_2026');
-        $this->timeout = 120;
+        $this->timeout = (int) config('services.fastapi.timeout', 120);
     }
 
     /**
@@ -31,7 +31,14 @@ class FastApiClient
      * @param string|null $connectionId
      * @return array
      */
-    public function sendMessage(string $prompt, ?string $sessionId = null, ?string $connectionId = null, string $userId = 'user'): array
+    public function sendMessage(
+        string $prompt,
+        ?string $sessionId = null,
+        ?string $connectionId = null,
+        string $userId = 'user',
+        string $userRole = 'user',
+        array $userPermissions = []
+    ): array
     {
         try {
             $response = Http::withToken($this->apiKey)
@@ -41,6 +48,8 @@ class FastApiClient
                     'session_id' => $sessionId,
                     'connection_id' => $connectionId,
                     'user_id' => $userId,
+                    'user_role' => $userRole,
+                    'user_permissions' => $userPermissions,
                 ]));
 
             if ($response->successful()) {

@@ -71,11 +71,17 @@ class ChatController extends Controller
             'connection_id' => 'nullable|string',
         ])->validate();
 
+        $user = Auth::user();
+        $userRole = $user?->role?->slug ?? 'guest';
+        $userPermissions = $user?->role?->permissions->pluck('slug')->toArray() ?? [];
+
         $result = $this->fastApiClient->sendMessage(
             $validated['prompt'],
             $validated['session_id'] ?? null,
             $validated['connection_id'] ?? null,
-            $this->resolveUserId()
+            $this->resolveUserId(),
+            $userRole,
+            $userPermissions
         );
 
         return response()->json($result);

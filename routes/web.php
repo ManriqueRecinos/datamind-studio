@@ -3,74 +3,88 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DatabaseConnectionController;
+use App\Http\Controllers\HubController;
+use App\Http\Controllers\RolePermissionController;
+use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
-// Rutas de Autenticación de Usuario (Login, Registro y Logout)
+// Rutas Públicas de Autenticación de Usuario (Login, Registro y Logout)
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
 Route::post('/register', [AuthController::class, 'register'])->name('register.submit');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Rutas de DataMind Studio - Asistente IA, Historial por Usuario y Constructor de Gráficos
-Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
-Route::post('/chat/send', [ChatController::class, 'send'])->name('chat.send');
-Route::post('/chat/stream', [ChatController::class, 'stream'])->name('chat.stream');
-Route::get('/chat/sessions', [ChatController::class, 'listSessions'])->name('chat.sessions.list');
-Route::get('/chat/sessions/{sessionId}', [ChatController::class, 'showSession'])->name('chat.sessions.show');
-Route::delete('/chat/sessions/{sessionId}', [ChatController::class, 'destroySession'])->name('chat.sessions.destroy');
-Route::get('/chat/dataset/{datasetId}', [ChatController::class, 'getDataset'])->name('chat.dataset');
-Route::get('/chat/export/{datasetId}', [ChatController::class, 'exportExcel'])->name('chat.export');
-Route::get('/chat/training/rules', [ChatController::class, 'listKnowledgeRules'])->name('chat.training.list');
-Route::post('/chat/training/train', [ChatController::class, 'trainKnowledgeRule'])->name('chat.training.train');
-Route::delete('/chat/training/rules/{ruleId}', [ChatController::class, 'deleteKnowledgeRule'])->name('chat.training.destroy');
+// Rutas de Inicio y Hub de Selección de Ecosistemas
+Route::get('/', [HubController::class, 'index'])->name('home');
+Route::get('/hub', [HubController::class, 'index'])->name('hub.index');
 
-// Rutas del Gestor Dinámico de Bases de Datos y Vectorización Selectiva
-Route::get('/connections', [DatabaseConnectionController::class, 'index'])->name('connections.index');
-Route::get('/connections/list', [DatabaseConnectionController::class, 'list'])->name('connections.list');
-Route::post('/connections/test', [DatabaseConnectionController::class, 'test'])->name('connections.test');
-Route::post('/connections', [DatabaseConnectionController::class, 'store'])->name('connections.store');
-Route::post('/connections/{connectionId}/activate', [DatabaseConnectionController::class, 'activate'])->name('connections.activate');
-Route::get('/connections/{connectionId}/tables', [DatabaseConnectionController::class, 'tables'])->name('connections.tables');
-Route::post('/connections/{connectionId}/vectorize', [DatabaseConnectionController::class, 'vectorize'])->name('connections.vectorize');
-Route::delete('/connections/{connectionId}', [DatabaseConnectionController::class, 'destroy'])->name('connections.destroy');
+// Rutas Operativas Protegidas por Autenticación de Usuario (auth)
+Route::middleware(['auth'])->group(function () {
 
-Route::get('/', function () {
-    $categories = ['Base de Datos', 'Nodos IA', 'Pipelines ETL', 'Vectores HNSW', 'Almacenamiento', 'Seguridad', 'Monitoreo'];
-    $states = ['Disponible', 'Stock Bajo', 'Agotado', 'En Tránsito'];
-    $items = [];
+    // ECOSISTEMA 1: Chat & Analítica Inteligente IA
+    Route::prefix('chat')->name('chat.')->group(function () {
+        Route::get('/', [ChatController::class, 'index'])->name('index');
+        Route::post('/send', [ChatController::class, 'send'])->name('send');
+        Route::post('/stream', [ChatController::class, 'stream'])->name('stream');
+        Route::get('/sessions', [ChatController::class, 'listSessions'])->name('sessions.list');
+        Route::get('/sessions/{sessionId}', [ChatController::class, 'showSession'])->name('sessions.show');
+        Route::delete('/sessions/{sessionId}', [ChatController::class, 'destroySession'])->name('sessions.destroy');
+        Route::get('/dataset/{datasetId}', [ChatController::class, 'getDataset'])->name('dataset');
+        Route::get('/export/{datasetId}', [ChatController::class, 'exportExcel'])->name('export');
 
-    for ($i = 1; $i <= 65; $i++) {
-        $category = $categories[($i - 1) % count($categories)];
-        $state = ($i % 11 === 0) ? 'Agotado' : (($i % 5 === 0) ? 'Stock Bajo' : (($i % 7 === 0) ? 'En Tránsito' : 'Disponible'));
-        
-        $names = [
-            'Cluster PostgreSQL 17 + pgvector',
-            'Conector Analítico MariaDB',
-            'Índice Vectorial HNSW 768-dim',
-            'Motor Inferencia Ollama Qwen 2.5',
-            'Módulo de Embeddings DataMind',
-            'Guardrail AST SQLGlot Read-Only',
-            'Exportador Dinámico OpenPyXL',
-            'Pipeline de Sincronización DDL',
-            'Caché Temporal de Datasets',
-            ' Conector Universal Multi-DB',
-            'Stream Server-Sent Events (SSE)',
-            ' Conector de Auditoría JSON',
-            'Analizador Semántico de Esquemas',
-        ];
-        $itemName = trim($names[($i - 1) % count($names)]) . ' - Instancia ' . $i;
-        $stock = ($state === 'Agotado') ? 0 : (($state === 'Stock Bajo') ? rand(5, 40) : rand(120, 3500));
-        $unit = 'unid.';
+        // Entrenamiento de Base de Conocimiento (Requiere permiso chat.train)
+        Route::middleware(['permission:chat.train'])->group(function () {
+            Route::get('/training/rules', [ChatController::class, 'listKnowledgeRules'])->name('training.list');
+            Route::post('/training/train', [ChatController::class, 'trainKnowledgeRule'])->name('training.train');
+            Route::delete('/training/rules/{ruleId}', [ChatController::class, 'deleteKnowledgeRule'])->name('training.destroy');
+        });
+    });
 
-        $items[] = [
-            'id' => $i,
-            'code' => 'DM-' . str_pad($i, 3, '0', STR_PAD_LEFT),
-            'name' => $itemName,
-            'category' => $category,
-            'stock' => number_format($stock) . ' ' . $unit,
-            'state' => $state
-        ];
-    }
+    // ECOSISTEMA 2: Gestor Dinámico de Bases de Datos & Vectorización
+    Route::prefix('connections')->name('connections.')->group(function () {
+        Route::get('/', [DatabaseConnectionController::class, 'index'])->name('index');
+        Route::get('/list', [DatabaseConnectionController::class, 'list'])->name('list');
+        Route::get('/{connectionId}/tables', [DatabaseConnectionController::class, 'tables'])->name('tables');
 
-    return view('welcome', compact('items'));
+        // Mutaciones de BD (Requiere permiso connections.manage)
+        Route::middleware(['permission:connections.manage'])->group(function () {
+            Route::post('/test', [DatabaseConnectionController::class, 'test'])->name('test');
+            Route::post('/', [DatabaseConnectionController::class, 'store'])->name('store');
+            Route::post('/{connectionId}/activate', [DatabaseConnectionController::class, 'activate'])->name('activate');
+            Route::post('/{connectionId}/vectorize', [DatabaseConnectionController::class, 'vectorize'])->name('vectorize');
+            Route::delete('/{connectionId}', [DatabaseConnectionController::class, 'destroy'])->name('destroy');
+        });
+    });
+
+    // ECOSISTEMA 3: Configuración & Apariencia
+    Route::prefix('settings')->name('settings.')->group(function () {
+        // Vista Unificada de Apariencia & Paletas
+        Route::get('/', [SettingsController::class, 'index'])->name('index');
+        Route::post('/preferences', [SettingsController::class, 'savePreferences'])->name('preferences');
+
+        // Administración de Usuarios & Auditoría IA (Requiere permiso users.manage o roles.manage)
+        Route::middleware(['permission:users.manage,roles.manage'])->prefix('users')->name('users.')->group(function () {
+            Route::get('/', [UserController::class, 'index'])->name('index');
+            Route::post('/', [UserController::class, 'store'])->name('store');
+            Route::put('/{user}', [UserController::class, 'update'])->name('update');
+            Route::put('/{user}/password', [UserController::class, 'updatePassword'])->name('password');
+            Route::post('/{user}/toggle', [UserController::class, 'toggleActive'])->name('toggle');
+            Route::post('/{user}/role', [UserController::class, 'assignRole'])->name('assignRole');
+            Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
+            Route::get('/{user}/ai-history', [UserController::class, 'aiHistory'])->name('aiHistory');
+        });
+
+        // Administración de Roles & Permisos RBAC (Requiere permiso roles.manage)
+        Route::middleware(['permission:roles.manage'])->prefix('roles')->name('roles.')->group(function () {
+            Route::get('/', [RolePermissionController::class, 'index'])->name('index');
+            Route::post('/', [RolePermissionController::class, 'storeRole'])->name('store');
+            Route::put('/{role}', [RolePermissionController::class, 'updateRole'])->name('update');
+            Route::post('/{role}/toggle', [RolePermissionController::class, 'toggleActiveRole'])->name('toggle');
+            Route::post('/{role}/permissions', [RolePermissionController::class, 'syncRolePermissions'])->name('sync');
+            Route::delete('/{role}', [RolePermissionController::class, 'destroyRole'])->name('destroy');
+            Route::get('/{role}/users', [RolePermissionController::class, 'roleUsers'])->name('users');
+        });
+    });
+
 });
