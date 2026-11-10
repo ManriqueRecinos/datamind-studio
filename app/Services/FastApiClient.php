@@ -330,6 +330,29 @@ class FastApiClient
      * @param string $connectionId
      * @return array
      */
+    /**
+     * Actualiza la configuración, credenciales o esquemas de una conexión existente.
+     *
+     * @param string $connectionId
+     * @param array $payload
+     * @return array
+     */
+    public function updateConnection(string $connectionId, array $payload): array
+    {
+        $response = Http::withToken($this->apiKey)
+            ->timeout(20)
+            ->put("{$this->baseUrl}/connections/{$connectionId}", $payload);
+
+        if ($response->successful()) {
+            return ['success' => true, 'data' => $response->json()];
+        }
+
+        return [
+            'success' => false,
+            'message' => $response->json('detail') ?? 'No se pudo actualizar la conexión.',
+        ];
+    }
+
     public function activateConnection(string $connectionId): array
     {
         $response = Http::withToken($this->apiKey)

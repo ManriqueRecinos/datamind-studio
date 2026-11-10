@@ -51,6 +51,7 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware(['permission:connections.manage'])->group(function () {
             Route::post('/test', [DatabaseConnectionController::class, 'test'])->name('test');
             Route::post('/', [DatabaseConnectionController::class, 'store'])->name('store');
+            Route::put('/{connectionId}', [DatabaseConnectionController::class, 'update'])->name('update');
             Route::post('/{connectionId}/activate', [DatabaseConnectionController::class, 'activate'])->name('activate');
             Route::post('/{connectionId}/vectorize', [DatabaseConnectionController::class, 'vectorize'])->name('vectorize');
             Route::delete('/{connectionId}', [DatabaseConnectionController::class, 'destroy'])->name('destroy');

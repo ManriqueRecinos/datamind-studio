@@ -1,4 +1,4 @@
-<x-app-layout
+﻿<x-app-layout
     title="Gestor de Bases de Datos y Vectorización"
     ecosystem="vectorization"
     ecosystemLabel="Ecosistema de Vectorización & Bases de Datos"
@@ -233,6 +233,10 @@
                                         <i class="fa-solid fa-table-cells"></i> Abrir en Esquemas y Tablas
                                     </button>
                                     <div class="flex items-center gap-2">
+                                        <button type="button" class="btn-edit-conn text-slate-500 hover:text-datamind-primary p-1 cursor-pointer"
+                                                data-id="{{ $conn['id'] }}" data-name="{{ $conn['name'] }}" title="Editar configuración y esquemas">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </button>
                                         @if(empty($conn['is_active']))
                                             <button type="button" class="btn-activate-conn font-semibold px-2.5 py-1 rounded-none bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer border border-slate-200"
                                                     data-id="{{ $conn['id'] }}">
@@ -464,6 +468,115 @@
                     Cerrar
                 </button>
             </div>
+        </div>
+    </div>
+
+
+    <!-- =========================================================================
+         MODAL MONOLÍTICO RECTO: EDITAR CONEXIÓN Y ESQUEMAS
+         ========================================================================= -->
+    <div id="modalEditConnection" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white border border-slate-300 w-full max-w-3xl max-h-[90vh] flex flex-col rounded-none shadow-2xl">
+            <!-- Modal Header -->
+            <div class="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-datamind-primary"></i>
+                    <div>
+                        <h3 id="modalEditConnTitle" class="text-sm font-bold text-slate-900">Editar Conexión</h3>
+                        <p class="text-[11px] text-slate-500">Modifica alias, credenciales y esquemas autorizados</p>
+                    </div>
+                </div>
+                <button type="button" id="btnCloseEditConnModal" class="text-slate-400 hover:text-slate-700 text-base p-1 cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body Form -->
+            <form id="editConnectionForm" onsubmit="return false;" class="p-5 overflow-y-auto custom-scrollbar space-y-4 text-xs">
+                <input type="hidden" id="editConnId">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 uppercase mb-1">Nombre / Alias</label>
+                        <input type="text" id="editConnName" required
+                            class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-xs text-slate-800 rounded-none focus:outline-hidden">
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="col-span-2">
+                            <label class="block font-bold text-slate-700 uppercase mb-1">Motor</label>
+                            <select id="editConnEngine" class="w-full px-2 py-1.5 border border-slate-200 bg-white text-xs text-slate-800 font-semibold rounded-none focus:outline-hidden">
+                                <option value="postgresql">PostgreSQL</option>
+                                <option value="mariadb">MariaDB / MySQL</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 uppercase mb-1">Puerto</label>
+                            <input type="number" id="editConnPort" required
+                                class="w-full px-2 py-1.5 border border-slate-200 bg-white text-xs text-slate-800 font-mono rounded-none focus:outline-hidden">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 uppercase mb-1">Host IP</label>
+                        <input type="text" id="editConnHost" required
+                            class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-xs text-slate-800 font-mono rounded-none focus:outline-hidden">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 uppercase mb-1">Base de Datos</label>
+                        <input type="text" id="editConnDatabase" required
+                            class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-xs text-slate-800 font-mono rounded-none focus:outline-hidden">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 uppercase mb-1">Usuario</label>
+                        <input type="text" id="editConnUsername" required
+                            class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-xs text-slate-800 rounded-none focus:outline-hidden">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 uppercase mb-1">Contraseña (Dejar en blanco para no cambiar)</label>
+                        <input type="password" id="editConnPassword" placeholder="••••••••••••"
+                            class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-xs text-slate-800 rounded-none focus:outline-hidden">
+                    </div>
+                </div>
+
+                <!-- Esquemas Habilitados para esta Conexión -->
+                <div class="border border-slate-200 p-3 bg-slate-50/50 space-y-2">
+                    <div class="flex items-center justify-between pb-1.5 border-b border-slate-200">
+                        <div>
+                            <span class="font-bold text-slate-800 uppercase flex items-center gap-1.5">
+                                <i class="fa-solid fa-layer-group text-datamind-primary"></i>
+                                Esquemas que Deseas Utilizar
+                            </span>
+                            <p class="text-[10px] text-slate-500">Marca o desmarca los esquemas visibles para el asistente y el explorador.</p>
+                        </div>
+                        <button type="button" id="btnRefreshEditSchemas" class="px-2 py-1 bg-white border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100 cursor-pointer">
+                            <i class="fa-solid fa-arrows-rotate mr-1"></i> Detectar Esquemas en Vivo
+                        </button>
+                    </div>
+
+                    <div id="editSchemasCheckboxGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-1 max-h-44 overflow-y-auto custom-scrollbar">
+                        <div class="col-span-full py-4 text-center text-slate-400">
+                            Cargando esquemas de la conexión...
+                        </div>
+                    </div>
+                </div>
+
+                <div id="editTestResultBanner" class="hidden p-2.5 text-xs border rounded-none"></div>
+
+                <!-- Modal Actions -->
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                    <button type="button" id="btnCancelEditConn" class="px-3.5 py-1.5 bg-white border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-none cursor-pointer">
+                        Cancelar
+                    </button>
+                    <button type="button" id="btnSaveEditedConnection" class="px-4 py-1.5 bg-datamind-primary text-white text-xs font-bold hover:opacity-95 rounded-none cursor-pointer">
+                        <i class="fa-solid fa-floppy-disk mr-1"></i> Actualizar Conexión
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

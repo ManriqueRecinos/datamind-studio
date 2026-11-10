@@ -97,6 +97,33 @@ class DatabaseConnectionController extends Controller
     /**
      * Marca una conexión como activa para el asistente de chat.
      */
+    /**
+     * Actualiza una conexión existente (nombre, credenciales o esquemas seleccionados).
+     */
+    public function update(Request $request, string $connectionId): JsonResponse
+    {
+        $data = $this->extractPayload($request);
+        $validated = validator($data, [
+            'name' => 'nullable|string|min:2|max:120',
+            'engine' => 'nullable|string|in:mariadb,mysql,postgresql,postgres',
+            'host' => 'nullable|string|max:255',
+            'port' => 'nullable|integer|min:1|max:65535',
+            'database_name' => 'nullable|string|max:120',
+            'username' => 'nullable|string|max:120',
+            'password' => 'nullable|string',
+            'selected_schemas' => 'nullable|array',
+            'selected_schemas.*' => 'string',
+            'set_active' => 'nullable|boolean',
+        ])->validate();
+
+        if (isset($data['selected_schemas']) && is_array($data['selected_schemas'])) {
+            $validated['selected_schemas'] = array_values($data['selected_schemas']);
+        }
+
+        $result = $this->fastApiClient->updateConnection($connectionId, $validated);
+        return response()->json($result, $result['success'] ? 200 : 400);
+    }
+
     public function activate(string $connectionId): JsonResponse
     {
         $result = $this->fastApiClient->activateConnection($connectionId);

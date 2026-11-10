@@ -1,4 +1,4 @@
-/**
+﻿/**
  * DataMind Studio - Gestor Dinámico de Bases de Datos y Vectorización Selectiva
  * Soporta navegación en 3 paneles monolíticos, pre-selección de esquemas y modal de estructura de tabla.
  */
@@ -66,6 +66,7 @@
         initFormEvents();
         initExplorerEvents();
         initModalEvents();
+        initEditModalEvents();
         bindConnectionCardsEvents();
 
         // Cargar tablas de la conexión activa inicial si existe
@@ -365,6 +366,12 @@
             });
         });
 
+                document.querySelectorAll('.btn-edit-conn').forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                openEditConnectionModal(this.getAttribute('data-id'));
+            });
+        });
         document.querySelectorAll('.btn-delete-conn').forEach(btn => {
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
@@ -809,6 +816,185 @@
 
     async function refreshConnectionsList() {
         window.location.reload();
+    }
+
+        /* =========================================================================
+       6. MODAL DE EDICIÓN DE CONEXIÓN Y ESQUEMAS
+       ========================================================================= */
+    let cachedConnections = [];
+
+    async function fetchAllConnections() {
+        try {
+            const res = await fetch('/connections/list');
+            const json = await res.json();
+            if (json.success) {
+                cachedConnections = json.connections || [];
+            }
+        } catch (e) {
+            console.error('Error fetching connections:', e);
+        }
+    }
+
+    async function openEditConnectionModal(connectionId) {
+        if (!cachedConnections || cachedConnections.length === 0) {
+            await fetchAllConnections();
+        }
+        const conn = cachedConnections.find(c => c.id === connectionId);
+        if (!conn) {
+            if (window.toastr) toastr.error('No se pudo encontrar la información de la conexión.');
+            return;
+        }
+
+        document.getElementById('editConnId').value = conn.id;
+        document.getElementById('editConnName').value = conn.name;
+        document.getElementById('editConnEngine').value = conn.engine;
+        document.getElementById('editConnPort').value = conn.port;
+        document.getElementById('editConnHost').value = conn.host;
+        document.getElementById('editConnDatabase').value = conn.database_name;
+        document.getElementById('editConnUsername').value = conn.username;
+        document.getElementById('editConnPassword').value = '';
+
+        const grid = document.getElementById('editSchemasCheckboxGrid');
+        grid.innerHTML = '<div class="col-span-full py-4 text-center text-slate-400"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Detectando esquemas disponibles en la base de datos...</div>';
+        document.getElementById('modalEditConnection').classList.remove('hidden');
+
+        await introspectSchemasForEdit(conn);
+    }
+
+    async function introspectSchemasForEdit(conn) {
+        const grid = document.getElementById('editSchemasCheckboxGrid');
+        const banner = document.getElementById('editTestResultBanner');
+        banner.classList.add('hidden');
+
+        try {
+            // Hacemos test de credenciales para obtener schemas_detected frescos
+            const res = await fetch('/connections/test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    engine: conn.engine,
+                    host: conn.host,
+                    port: conn.port,
+                    database_name: conn.database_name,
+                    username: conn.username,
+                    password: ''
+                })
+            });
+
+            const json = await res.json();
+            let schemasList = [];
+            if (res.ok && json.success) {
+                schemasList = json.data.schemas_detected || [];
+            } else {
+                // Si requiere password o falla test, extraer esquemas ya presentes en las tablas de la conexion
+                const tablesRes = await fetch(`/connections/${conn.id}/tables`);
+                const tablesJson = await tablesRes.json();
+                if (tablesJson.success) {
+                    const schemaCounts = {};
+                    (tablesJson.data.tables || []).forEach(t => {
+                        const s = t.schema_name || 'public';
+                        schemaCounts[s] = (schemaCounts[s] || 0) + 1;
+                    });
+                    schemasList = Object.keys(schemaCounts).map(s => ({ name: s, tables_count: schemaCounts[s] }));
+                }
+            }
+
+            const currentActiveSchemas = new Set(conn.selected_schemas || []);
+            const hasExplicitSchemas = (conn.selected_schemas && conn.selected_schemas.length > 0);
+
+            if (schemasList.length === 0) {
+                grid.innerHTML = '<div class="col-span-full py-3 text-center text-slate-400">No se encontraron múltiples esquemas; se utiliza el esquema por defecto.</div>';
+                return;
+            }
+
+            grid.innerHTML = schemasList.map(s => {
+                const isChecked = hasExplicitSchemas ? currentActiveSchemas.has(s.name) : true;
+                return `
+                    <label class="flex items-center gap-2 p-1.5 border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-xs">
+                        <input type="checkbox" class="chk-edit-schema h-3.5 w-3.5 rounded-none accent-[#0476D9]"
+                            value="${escapeHtml(s.name)}" ${isChecked ? 'checked' : ''}>
+                        <span class="font-mono font-bold text-slate-800 truncate">${escapeHtml(s.name)}</span>
+                        <span class="ml-auto text-[10px] text-slate-500 font-semibold">(${s.tables_count} tablas)</span>
+                    </label>
+                `;
+            }).join('');
+        } catch (err) {
+            grid.innerHTML = `<div class="col-span-full py-3 text-center text-red-500">Error al detectar esquemas: ${escapeHtml(err.message)}</div>`;
+        }
+    }
+
+    async function handleSaveEditedConnection() {
+        const id = document.getElementById('editConnId').value;
+        const name = document.getElementById('editConnName').value.trim();
+        const engine = document.getElementById('editConnEngine').value;
+        const port = parseInt(document.getElementById('editConnPort').value, 10);
+        const host = document.getElementById('editConnHost').value.trim();
+        const database_name = document.getElementById('editConnDatabase').value.trim();
+        const username = document.getElementById('editConnUsername').value.trim();
+        const password = document.getElementById('editConnPassword').value;
+
+        const selectedSchemas = [];
+        document.querySelectorAll('.chk-edit-schema:checked').forEach(chk => {
+            selectedSchemas.push(chk.value);
+        });
+
+        const btn = document.getElementById('btnSaveEditedConnection');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Guardando...';
+
+        try {
+            const payload = {
+                name, engine, port, host, database_name, username,
+                selected_schemas: selectedSchemas
+            };
+            if (password) {
+                payload.password = password;
+            }
+
+            const res = await fetch(`/connections/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const json = await res.json();
+            if (res.ok && json.success) {
+                if (window.toastr) toastr.success(`Conexión "${name}" actualizada correctamente.`, 'DataMind Studio');
+                document.getElementById('modalEditConnection').classList.add('hidden');
+                await refreshConnectionsList();
+            } else {
+                throw new Error(json.message || 'Error al actualizar la conexión.');
+            }
+        } catch (err) {
+            if (window.toastr) toastr.error(err.message, 'Error de Actualización');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> Actualizar Conexión';
+        }
+    }
+
+    function initEditModalEvents() {
+        fetchAllConnections();
+        document.getElementById('btnCloseEditConnModal')?.addEventListener('click', () => {
+            document.getElementById('modalEditConnection')?.classList.add('hidden');
+        });
+        document.getElementById('btnCancelEditConn')?.addEventListener('click', () => {
+            document.getElementById('modalEditConnection')?.classList.add('hidden');
+        });
+        document.getElementById('btnSaveEditedConnection')?.addEventListener('click', handleSaveEditedConnection);
+        document.getElementById('btnRefreshEditSchemas')?.addEventListener('click', () => {
+            const id = document.getElementById('editConnId').value;
+            const conn = cachedConnections.find(c => c.id === id);
+            if (conn) introspectSchemasForEdit(conn);
+        });
     }
 
     function escapeHtml(string) {
