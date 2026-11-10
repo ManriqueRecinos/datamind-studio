@@ -131,6 +131,92 @@ html.dark textarea:focus {
     border-color: var(--datamind-primary) !important;
 }
 
+/* ==========================================================================
+   Soporte Global Modo Oscuro para Tablas, Filas Dinámicas y Contenedores
+   ========================================================================== */
+html.dark table,
+html.dark thead,
+html.dark tbody,
+html.dark th,
+html.dark td,
+html.dark #tablesListBody,
+html.dark .table-row-item,
+html.dark #tablesGridWrapper,
+html.dark #tablesExplorerContainer {
+    background-color: #0f172a !important;
+    color: #e2e8f0 !important;
+    border-color: #1e293b !important;
+}
+
+html.dark thead tr,
+html.dark thead th {
+    background-color: #1e293b !important;
+    color: #cbd5e1 !important;
+    border-color: #334155 !important;
+}
+
+html.dark .table-row-item:hover,
+html.dark .table-row-item.bg-slate-50,
+html.dark tr.table-row-item:hover {
+    background-color: #1e293b !important;
+}
+
+html.dark .table-row-item td .text-slate-900,
+html.dark .table-row-item td .font-bold,
+html.dark .table-row-item td span.text-slate-900 {
+    color: #f8fafc !important;
+}
+
+html.dark .table-row-item td .text-slate-500,
+html.dark .table-row-item td .text-slate-600 {
+    color: #94a3b8 !important;
+}
+
+html.dark .bg-white {
+    background-color: #0f172a !important;
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-slate-100 {
+    background-color: #1e293b !important;
+    color: #cbd5e1 !important;
+    border-color: #334155 !important;
+}
+
+html.dark .hover\:bg-slate-100:hover,
+html.dark .hover\:bg-slate-200:hover {
+    background-color: #334155 !important;
+}
+
+html.dark .text-slate-700,
+html.dark .text-slate-800 {
+    color: #e2e8f0 !important;
+}
+
+html.dark .divide-slate-100 > * + *,
+html.dark .divide-slate-200 > * + * {
+    border-color: #1e293b !important;
+}
+
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-slate-300 {
+    border-color: #1e293b !important;
+}
+
+html.dark .text-datamind-dark {
+    color: #99d0f2 !important;
+}
+
+html.dark .border-datamind-light\/80 {
+    border-color: #334155 !important;
+}
+
+html.dark #schemaFilterSelect option {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+}
+
 /* Clases Utilitarias Globales de la Paleta DataMind */
 .bg-datamind-neutral {
     background-color: var(--datamind-bg-neutral);

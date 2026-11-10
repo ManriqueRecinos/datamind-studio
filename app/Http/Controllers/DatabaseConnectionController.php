@@ -79,10 +79,15 @@ class DatabaseConnectionController extends Controller
             'username' => 'required|string|max:120',
             'password' => 'nullable|string',
             'set_active' => 'nullable|boolean',
+            'selected_schemas' => 'nullable|array',
+            'selected_schemas.*' => 'string',
         ])->validate();
 
         $validated['password'] = $validated['password'] ?? '';
         $validated['set_active'] = $validated['set_active'] ?? true;
+        if (isset($data['selected_schemas']) && is_array($data['selected_schemas'])) {
+            $validated['selected_schemas'] = array_values($data['selected_schemas']);
+        }
 
         $result = $this->fastApiClient->createConnection($validated);
 
