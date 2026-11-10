@@ -309,6 +309,17 @@
 
         tablesListBody.innerHTML = filtered.map(t => {
             const isChecked = selectedTableNames.has(t.table_name);
+            const relatedList = Array.isArray(t.related_tables) ? t.related_tables : [];
+            const relationBadge = relatedList.length > 0
+                ? `<div class="mt-1 flex flex-wrap items-center gap-1">
+                       <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-datamind-light/30 text-datamind-dark border border-datamind-light/80"
+                             title="Relaciones detectadas automáticamente para consultas JOIN: ${escapeHtml(relatedList.join(', '))}">
+                           <i class="fa-solid fa-diagram-project text-[9px] text-datamind-primary"></i>
+                           JOIN: ${escapeHtml(relatedList.slice(0, 3).join(', '))}${relatedList.length > 3 ? ` (+${relatedList.length - 3})` : ''}
+                       </span>
+                   </div>`
+                : '';
+
             const statusBadge = t.is_vectorized
                 ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                        <i class="fa-solid fa-check text-[10px]"></i> Vectorizada
@@ -324,7 +335,10 @@
                         <input type="checkbox" class="chk-table-item h-4 w-4 rounded accent-[#0476D9] cursor-pointer"
                             value="${escapeHtml(t.table_name)}" ${isChecked ? 'checked' : ''}>
                     </td>
-                    <td class="py-2.5 px-4 font-mono font-bold text-datamind-dark">${escapeHtml(t.table_name)}</td>
+                    <td class="py-2.5 px-4">
+                        <div class="font-mono font-bold text-datamind-dark">${escapeHtml(t.table_name)}</div>
+                        ${relationBadge}
+                    </td>
                     <td class="py-2.5 px-4 text-center">
                         <span class="px-2 py-0.5 rounded bg-datamind-neutral text-slate-700 font-semibold text-[11px]">
                             ${t.columns_count} cols
