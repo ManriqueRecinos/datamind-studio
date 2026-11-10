@@ -1,6 +1,6 @@
 # Reglas del Agente - DataMind Studio (Laravel 13)
 
-> **Versión Actual del Proyecto:** `1.0.3`  
+> **Versión Actual del Proyecto:** `1.0.7`  
 > **Nombre del Sistema:** DataMind Studio  
 > **Framework:** Laravel 13 con PHP 8.3+ / 8.5+
 

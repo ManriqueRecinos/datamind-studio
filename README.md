@@ -3,9 +3,9 @@
 [![Laravel](https://img.shields.io/badge/Laravel-13.x-0476D9?logo=laravel&logoColor=white)](https://laravel.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-v4.0-0468BF?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Offline Ready](https://img.shields.io/badge/Architecture-100%25%20Offline%20%2F%20Zero%20CDNs-4B89BF)](#)
-[![Version](https://img.shields.io/badge/Version-1.0.3-emerald.svg)](#)
+[![Version](https://img.shields.io/badge/Version-1.0.7-emerald.svg)](#)
 
-> **Versión Actual:** `1.0.3`  
+> **Versión Actual:** `1.0.7`  
 > **Estado:** Plataforma Web Open-Source para Análisis de Bases de Datos con IA Local  
 > **Arquitectura Frontend:** 100% Local / Offline-Ready (Cero CDNs externos)
 

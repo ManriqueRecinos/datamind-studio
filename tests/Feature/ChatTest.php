@@ -54,4 +54,28 @@ class ChatTest extends TestCase
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['engine', 'host', 'port', 'database_name', 'username']);
     }
+
+    public function test_login_page_is_accessible(): void
+    {
+        $response = $this->get('/login');
+
+        $response->assertStatus(200);
+        $response->assertSee('Iniciar Sesión');
+        $response->assertSee('Crear Cuenta');
+    }
+
+    public function test_chat_dataset_validates_dataset_id(): void
+    {
+        $response = $this->get('/chat/dataset/invalid@dataset!id');
+
+        $response->assertStatus(400);
+    }
+
+    public function test_chat_sessions_list_endpoint_returns_json(): void
+    {
+        $response = $this->getJson('/chat/sessions');
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure(['success', 'data']);
+    }
 }
