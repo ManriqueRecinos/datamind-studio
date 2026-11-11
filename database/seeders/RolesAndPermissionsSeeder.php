@@ -18,6 +18,7 @@ class RolesAndPermissionsSeeder extends Seeder
             // Módulo Chat & RAG
             ['name' => 'Usar Asistente IA', 'slug' => 'chat.use', 'module' => 'Chat & RAG', 'description' => 'Permite interactuar con el asistente analítico y generar consultas'],
             ['name' => 'Entrenar Base de Conocimiento', 'slug' => 'chat.train', 'module' => 'Chat & RAG', 'description' => 'Permite registrar y eliminar reglas de entrenamiento corporativo'],
+            ['name' => 'Gestionar Conocimiento y Candidatos', 'slug' => 'manage-knowledge', 'module' => 'Chat & RAG', 'description' => 'Permite administrar, aprobar, revertir y promover candidatos de conocimiento global'],
             ['name' => 'Exportar Datasets', 'slug' => 'chat.export', 'module' => 'Chat & RAG', 'description' => 'Permite descargar resultados analíticos en formato Excel'],
 
             // Módulo Conexiones & Vectorización

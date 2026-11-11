@@ -107,13 +107,17 @@ class ChatController extends Controller
             'prompt' => 'required|string|max:2000',
             'session_id' => 'nullable|string',
             'connection_id' => 'nullable|string',
+            'retry_message_id' => 'nullable|string',
+            'attachment_ids' => 'nullable|array',
         ])->validate();
 
         return $this->fastApiClient->streamChat(
             $validated['prompt'],
             $validated['session_id'] ?? null,
             $validated['connection_id'] ?? null,
-            $this->resolveUserId()
+            $this->resolveUserId(),
+            $validated['retry_message_id'] ?? null,
+            $validated['attachment_ids'] ?? []
         );
     }
 
@@ -132,6 +136,33 @@ class ChatController extends Controller
     public function showSession(string $sessionId): JsonResponse
     {
         $result = $this->fastApiClient->getChatSessionDetail($sessionId, $this->resolveUserId());
+        return response()->json($result, $result['success'] ? 200 : 404);
+    }
+
+    /**
+     * Sube un archivo adjunto tabular o documental (.csv, .tsv, .xlsx, .xls, .pdf, .docx) a FastAPI.
+     */
+    public function uploadAttachment(Request $request): JsonResponse
+    {
+        $request->validate([
+            'file' => 'required|file|max:15360|mimes:csv,txt,xlsx,xls,pdf,docx',
+            'session_id' => 'required|string',
+        ]);
+
+        $file = $request->file('file');
+        $sessionId = $request->input('session_id');
+        $userId = $this->resolveUserId();
+
+        $result = $this->fastApiClient->uploadAttachment($file, $sessionId, $userId);
+        return response()->json($result, $result['success'] ? 201 : 422);
+    }
+
+    /**
+     * Elimina un archivo adjunto de la sesión.
+     */
+    public function destroyAttachment(string $attachmentId): JsonResponse
+    {
+        $result = $this->fastApiClient->deleteAttachment($attachmentId, $this->resolveUserId());
         return response()->json($result, $result['success'] ? 200 : 404);
     }
 
@@ -237,5 +268,111 @@ class ChatController extends Controller
     {
         $result = $this->fastApiClient->deleteKnowledgeRule($ruleId);
         return response()->json($result, $result['success'] ? 200 : 404);
+    }
+
+    /**
+     * Lista candidatos de conocimiento y propuestas de curación.
+     */
+    public function listKnowledgeCandidates(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+        $userRole = $user?->role?->slug ?? 'guest';
+        $userPermissions = $user?->role?->permissions->pluck('slug')->toArray() ?? [];
+
+        $result = $this->fastApiClient->listCandidates(
+            $this->resolveUserId(),
+            $userRole,
+            $userPermissions,
+            $request->query('connection_id'),
+            $request->query('scope'),
+            $request->query('status'),
+            $request->boolean('proposed_only')
+        );
+
+        return response()->json($result);
+    }
+
+    /**
+     * Confirma una regla candidata para el usuario autenticado.
+     */
+    public function confirmUserCandidate(string $candidateId): JsonResponse
+    {
+        $result = $this->fastApiClient->confirmUserCandidate($candidateId, $this->resolveUserId());
+        return response()->json($result, $result['success'] ? 200 : 400);
+    }
+
+    /**
+     * Postula una regla candidata a revisión corporativa.
+     */
+    public function proposeGlobalCandidate(string $candidateId): JsonResponse
+    {
+        $result = $this->fastApiClient->proposeGlobalCandidate($candidateId, $this->resolveUserId());
+        return response()->json($result, $result['success'] ? 200 : 400);
+    }
+
+    /**
+     * Promueve un candidato a global verificado (exclusivo administradores con manage-knowledge).
+     */
+    public function promoteGlobalCandidate(Request $request, string $candidateId): JsonResponse
+    {
+        $user = Auth::user();
+        if (!$user || (!$user->hasRole('super-admin', 'admin') && !$user->hasPermission('manage-knowledge'))) {
+            return response()->json(['success' => false, 'message' => 'Acceso denegado: Se requiere rol administrativo para promover reglas corporativas.'], 403);
+        }
+
+        $userRole = $user->role?->slug ?? 'admin';
+        $userPermissions = $user->role?->permissions->pluck('slug')->toArray() ?? [];
+
+        $result = $this->fastApiClient->promoteGlobalCandidate(
+            $candidateId,
+            $this->resolveUserId(),
+            $userRole,
+            $userPermissions,
+            $request->input('edited_content'),
+            $request->input('reason')
+        );
+
+        $status = $result['success'] ? 200 : ($result['status'] ?? 400);
+        return response()->json($result, $status);
+    }
+
+    /**
+     * Descarta un candidato.
+     */
+    public function rejectCandidate(Request $request, string $candidateId): JsonResponse
+    {
+        $user = Auth::user();
+        $userRole = $user?->role?->slug ?? 'guest';
+        $userPermissions = $user?->role?->permissions->pluck('slug')->toArray() ?? [];
+
+        $result = $this->fastApiClient->rejectCandidate(
+            $candidateId,
+            $this->resolveUserId(),
+            $userRole,
+            $userPermissions,
+            $request->input('reason')
+        );
+
+        return response()->json($result, $result['success'] ? 200 : 400);
+    }
+
+    /**
+     * Revierte una regla activa a su estado anterior o la desactiva.
+     */
+    public function rollbackCandidate(Request $request, string $candidateId): JsonResponse
+    {
+        $user = Auth::user();
+        $userRole = $user?->role?->slug ?? 'guest';
+        $userPermissions = $user?->role?->permissions->pluck('slug')->toArray() ?? [];
+
+        $result = $this->fastApiClient->rollbackCandidate(
+            $candidateId,
+            $this->resolveUserId(),
+            $userRole,
+            $userPermissions,
+            $request->input('reason')
+        );
+
+        return response()->json($result, $result['success'] ? 200 : 400);
     }
 }

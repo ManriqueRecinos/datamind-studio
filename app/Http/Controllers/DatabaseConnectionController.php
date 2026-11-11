@@ -131,6 +131,15 @@ class DatabaseConnectionController extends Controller
     }
 
     /**
+     * Obtiene todos los esquemas disponibles en la base de datos usando las credenciales almacenadas.
+     */
+    public function schemas(string $connectionId): JsonResponse
+    {
+        $result = $this->fastApiClient->getConnectionSchemas($connectionId);
+        return response()->json($result, $result['success'] ? 200 : 400);
+    }
+
+    /**
      * Detecta y lista todas las tablas de una conexión junto con su estado de vectorización.
      */
     public function tables(string $connectionId): JsonResponse

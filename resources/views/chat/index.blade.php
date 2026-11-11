@@ -17,6 +17,14 @@
             <!-- Módulo Dinámico desde Base de Datos -->
             <x-ecosystem-sidebar ecosystemKey="chat" />
 
+            <!-- Botón Recto de Nueva Conversación -->
+            <div class="p-3 border-b border-slate-200 bg-slate-50/70">
+                <button type="button" id="btnNewChat" class="w-full py-2 px-3 bg-datamind-primary hover:opacity-95 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer rounded-none transition shadow-none">
+                    <i class="fa-solid fa-plus text-xs"></i>
+                    <span>Nueva Conversación</span>
+                </button>
+            </div>
+
             <!-- Selector Recto de Base de Datos Activa para Chat -->
             <div class="p-3.5 border-b border-slate-200 bg-white">
                 <label for="activeConnectionSelect" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
@@ -36,9 +44,9 @@
             <!-- Módulo: Historial de Conversaciones del Usuario (Recto) -->
             <div class="p-3.5 border-b border-slate-200 flex-1 flex flex-col overflow-hidden">
                 <div class="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-100">
-                    <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                        <i class="fa-solid fa-clock-rotate-left text-datamind-primary"></i> Mis Conversaciones
-                    </h3>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-clock-rotate-left text-datamind-primary"></i> HISTORIAL DE CONVERSACIONES
+                    </span>
                     <span id="historyCountBadge" class="text-[9px] font-bold px-1.5 py-0.2 rounded-none bg-slate-100 text-slate-600 border border-slate-200">
                         {{ count($chatSessions ?? []) }}
                     </span>
@@ -74,24 +82,6 @@
                     @endforelse
                 </div>
             </div>
-
-            <!-- Sugerencias Rápidas Rectas -->
-            <div class="p-3.5 bg-slate-50/50">
-                <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <i class="fa-solid fa-wand-magic-sparkles text-datamind-primary"></i> Acciones Rápidas
-                </h3>
-                <div class="space-y-1">
-                    <button type="button" data-prompt="Hazme un gráfico detallado con los registros principales de la base de datos" class="quick-suggestion-btn w-full text-left p-2 border border-slate-200 hover:border-slate-400 hover:bg-white text-xs text-slate-700 hover:text-slate-900 transition rounded-none cursor-pointer">
-                        <i class="fa-solid fa-chart-column text-datamind-primary mr-1"></i> Generar gráfico interactivo
-                    </button>
-                    <button type="button" data-prompt="¿Qué tablas están registradas en la base de datos?" class="quick-suggestion-btn w-full text-left p-2 border border-slate-200 hover:border-slate-400 hover:bg-white text-xs text-slate-700 hover:text-slate-900 transition rounded-none cursor-pointer">
-                        <i class="fa-solid fa-database text-datamind-primary mr-1"></i> Explorar tablas registradas
-                    </button>
-                    <button type="button" data-prompt="Muestra los últimos 5 registros de la tabla principal" class="quick-suggestion-btn w-full text-left p-2 border border-slate-200 hover:border-slate-400 hover:bg-white text-xs text-slate-700 hover:text-slate-900 transition rounded-none cursor-pointer">
-                        <i class="fa-solid fa-table text-datamind-secondary mr-1"></i> Últimos 5 registros en SQL
-                    </button>
-                </div>
-            </div>
         </aside>
 
         <!-- Área Central del Chat Monolítica Recta (Adosada Directamente al Sidebar) -->
@@ -111,12 +101,18 @@
                         <p class="text-xs text-slate-500 max-w-md mb-6 leading-relaxed">
                             Puedo ayudarte a consultar manuales de procesos internos mediante <strong class="text-slate-800">RAG</strong> o extraer y analizar datos de tus bases de datos <strong class="text-slate-800">PostgreSQL / MariaDB</strong> con exportación a Excel.
                         </p>
-                        <div class="flex flex-wrap gap-2 justify-center max-w-lg">
+                        <div class="flex flex-wrap gap-2 justify-center max-w-xl">
+                            <button type="button" data-prompt="Hazme un gráfico detallado con los registros principales de la base de datos" class="quick-suggestion-btn inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-medium text-slate-700 transition cursor-pointer rounded-none">
+                                <i class="fa-solid fa-chart-column text-xs text-datamind-primary"></i> Generar gráfico interactivo
+                            </button>
                             <button type="button" data-prompt="¿Qué tablas están registradas en la base de datos?" class="quick-suggestion-btn inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-medium text-slate-700 transition cursor-pointer rounded-none">
                                 <i class="fa-solid fa-database text-xs text-datamind-primary"></i> Consultar esquema de Base de Datos
                             </button>
                             <button type="button" data-prompt="Explícame los procedimientos documentados en la base de conocimiento" class="quick-suggestion-btn inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-medium text-slate-700 transition cursor-pointer rounded-none">
                                 <i class="fa-solid fa-book text-xs text-datamind-secondary"></i> Consultar base de conocimiento
+                            </button>
+                            <button type="button" data-prompt="Muestra los últimos 5 registros de la tabla principal" class="quick-suggestion-btn inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-medium text-slate-700 transition cursor-pointer rounded-none">
+                                <i class="fa-solid fa-table text-xs text-datamind-secondary"></i> Últimos 5 registros en SQL
                             </button>
                         </div>
                     </div>
@@ -128,12 +124,25 @@
             <!-- Barra Inferior de Entrada de Texto -->
             <div class="p-3.5 bg-slate-50 border-t border-slate-200 shrink-0">
                 <form id="chatForm" onsubmit="return false;" class="max-w-4xl mx-auto flex flex-col gap-2">
+                    <!-- Contenedor dinámico de chips de archivos adjuntos -->
+                    <div id="attachedFilesContainer" class="flex flex-wrap gap-2 empty:hidden"></div>
+
+                    <!-- Input oculto para subir archivos -->
+                    <input type="file" id="fileAttachmentInput" accept=".csv,.tsv,.xlsx,.xls,.pdf,.docx" class="hidden">
+
                     <div class="flex items-center gap-2">
+                        <!-- Botón de Adjuntar Archivo (Clip 📎) -->
+                        <button type="button" id="btnAttachFile" 
+                                class="h-full px-3.5 py-2.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-datamind-primary transition cursor-pointer rounded-none shrink-0" 
+                                title="Adjuntar archivo tabular (.csv, .tsv, .xlsx, .xls) para analítica local">
+                            <i class="fa-solid fa-paperclip text-sm"></i>
+                        </button>
+
                         <div class="relative flex-1">
-                            <textarea id="promptInput" rows="2" placeholder="Pregúntale a DataMind AI... (ej: Muestra el total de ventas por sucursal)"
+                            <textarea id="promptInput" name="promptInput" rows="2" placeholder="Pregúntale a DataMind AI... (ej: Muestra el total de ventas por sucursal)"
                                 class="w-full pl-3.5 pr-10 py-2.5 text-xs text-slate-800 bg-white border border-slate-200 focus:outline-hidden focus:border-datamind-primary transition rounded-none resize-none custom-scrollbar"></textarea>
                             
-                            <button type="button" id="btnVoiceInput" class="absolute right-2.5 top-2.5 text-slate-400 hover:text-datamind-primary p-1 cursor-pointer" title="Entrada por voz">
+                            <button type="button" id="btnVoiceInput" class="hidden absolute right-2.5 top-2.5 text-slate-400 hover:text-datamind-primary p-1 cursor-pointer" title="Entrada por voz">
                                 <i class="fa-solid fa-microphone text-xs"></i>
                             </button>
                         </div>
@@ -146,7 +155,7 @@
 
                     <div class="flex items-center justify-between text-[11px] text-slate-400 px-1">
                         <span>Presiona <kbd class="px-1 py-0.5 border border-slate-200 bg-white rounded-none">Enter</kbd> para enviar o <kbd class="px-1 py-0.5 border border-slate-200 bg-white rounded-none">Shift + Enter</kbd> para nueva línea</span>
-                        <span class="flex items-center gap-1"><i class="fa-solid fa-lock text-[10px]"></i> Consulta segura AST SQLGlot</span>
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-bolt text-[10px] text-amber-500"></i> Analítica DuckDB + SQLGlot</span>
                     </div>
                 </form>
             </div>

@@ -80,16 +80,25 @@ class FastApiClient
      * @param string $prompt
      * @param string|null $sessionId
      * @param string|null $connectionId
+     * @param string $userId
+     * @param string|null $retryMessageId
      * @return StreamedResponse
      */
-    public function streamChat(string $prompt, ?string $sessionId = null, ?string $connectionId = null, string $userId = 'user'): StreamedResponse
+    public function streamChat(
+        string $prompt,
+        ?string $sessionId = null,
+        ?string $connectionId = null,
+        string $userId = 'user',
+        ?string $retryMessageId = null,
+        array $attachmentIds = []
+    ): StreamedResponse
     {
         $client = new GuzzleClient([
-            'timeout' => 120,
-            'read_timeout' => 120,
+            'timeout' => 240,
+            'read_timeout' => 240,
         ]);
 
-        return response()->stream(function () use ($client, $prompt, $sessionId, $connectionId, $userId) {
+        return response()->stream(function () use ($client, $prompt, $sessionId, $connectionId, $userId, $retryMessageId, $attachmentIds) {
             // Deshabilitar buffers de salida PHP
             while (ob_get_level() > 0) {
                 ob_end_flush();
@@ -107,7 +116,9 @@ class FastApiClient
                         'session_id' => $sessionId,
                         'connection_id' => $connectionId,
                         'user_id' => $userId,
-                    ]),
+                        'retry_message_id' => $retryMessageId,
+                        'attachment_ids' => !empty($attachmentIds) ? $attachmentIds : null,
+                    ], fn($val) => !is_null($val)),
                     'stream' => true,
                 ]);
 
@@ -116,6 +127,9 @@ class FastApiClient
                 while (!$body->eof()) {
                     $chunk = $body->read(256);
                     echo $chunk;
+                    if (function_exists('ob_flush')) {
+                        @ob_flush();
+                    }
                     flush();
                 }
             } catch (\Throwable $e) {
@@ -130,6 +144,52 @@ class FastApiClient
             'Connection' => 'keep-alive',
             'X-Accel-Buffering' => 'no',
         ]);
+    }
+
+    /**
+     * Sube un archivo adjunto tabular a FastAPI para analítica local en DuckDB.
+     */
+    public function uploadAttachment($file, string $sessionId, string $userId): array
+    {
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(60)
+                ->attach('file', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
+                ->post("{$this->baseUrl}/chat/attachments", [
+                    'session_id' => $sessionId,
+                    'user_id' => $userId,
+                ]);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return [
+                'success' => false,
+                'message' => $response->json('detail') ?? 'Error al subir el archivo a FastAPI.',
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Error en uploadAttachment FastAPI', ['error' => $e->getMessage()]);
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Elimina un archivo adjunto del chat.
+     */
+    public function deleteAttachment(string $attachmentId, string $userId): array
+    {
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(15)
+                ->delete("{$this->baseUrl}/chat/attachments/{$attachmentId}", [
+                    'user_id' => $userId,
+                ]);
+
+            return ['success' => $response->successful()];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
     }
 
     /**
@@ -375,6 +435,22 @@ class FastApiClient
      * @param string $connectionId
      * @return array
      */
+    public function getConnectionSchemas(string $connectionId): array
+    {
+        $response = Http::withToken($this->apiKey)
+            ->timeout(30)
+            ->get("{$this->baseUrl}/connections/{$connectionId}/schemas");
+
+        if ($response->successful()) {
+            return ['success' => true, 'data' => $response->json()];
+        }
+
+        return [
+            'success' => false,
+            'message' => $response->json('detail') ?? 'No se pudieron obtener los esquemas de la base de datos.',
+        ];
+    }
+
     public function getConnectionTables(string $connectionId): array
     {
         $response = Http::withToken($this->apiKey)
@@ -499,6 +575,191 @@ class FastApiClient
                 'success' => false,
                 'message' => $response->json('detail') ?? 'No se pudo eliminar la regla.',
             ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Lista candidatos de conocimiento y propuestas de curación.
+     */
+    public function listCandidates(
+        string $userId,
+        string $userRole,
+        array $userPermissions = [],
+        ?string $connectionId = null,
+        ?string $scope = null,
+        ?string $status = null,
+        bool $proposedOnly = false
+    ): array {
+        try {
+            $permsHeader = implode(',', $userPermissions);
+            $query = array_filter([
+                'connection_id' => $connectionId,
+                'scope' => $scope,
+                'status' => $status,
+                'proposed_only' => $proposedOnly ? 'true' : null,
+            ]);
+
+            $response = Http::withToken($this->apiKey)
+                ->withHeaders([
+                    'X-User-Id' => $userId,
+                    'X-User-Role' => $userRole,
+                    'X-User-Permissions' => $permsHeader,
+                ])
+                ->timeout(15)
+                ->get("{$this->baseUrl}/knowledge/candidates", $query);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return ['success' => false, 'message' => $response->json('detail') ?? 'Error consultando candidatos.'];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Confirma una regla candidata para el usuario autenticado.
+     */
+    public function confirmUserCandidate(string $candidateId, string $userId): array
+    {
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->withHeaders(['X-User-Id' => $userId])
+                ->timeout(15)
+                ->post("{$this->baseUrl}/knowledge/candidates/{$candidateId}/confirm-user");
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return ['success' => false, 'message' => $response->json('detail') ?? 'Error confirmando candidato.'];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Postula una regla candidata para revisión global corporativa.
+     */
+    public function proposeGlobalCandidate(string $candidateId, string $userId): array
+    {
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->withHeaders(['X-User-Id' => $userId])
+                ->timeout(15)
+                ->post("{$this->baseUrl}/knowledge/candidates/{$candidateId}/propose-global");
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return ['success' => false, 'message' => $response->json('detail') ?? 'Error postulando candidato.'];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Promueve un candidato a global verificado (exclusivo administradores).
+     */
+    public function promoteGlobalCandidate(
+        string $candidateId,
+        string $userId,
+        string $userRole,
+        array $userPermissions = [],
+        ?string $editedContent = null,
+        ?string $reason = null
+    ): array {
+        try {
+            $permsHeader = implode(',', $userPermissions);
+            $payload = array_filter([
+                'edited_content' => $editedContent,
+                'reason' => $reason,
+            ]);
+
+            $response = Http::withToken($this->apiKey)
+                ->withHeaders([
+                    'X-User-Id' => $userId,
+                    'X-User-Role' => $userRole,
+                    'X-User-Permissions' => $permsHeader,
+                ])
+                ->timeout(20)
+                ->post("{$this->baseUrl}/knowledge/candidates/{$candidateId}/promote-global", $payload);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return [
+                'success' => false,
+                'status' => $response->status(),
+                'message' => $response->json('detail') ?? 'Error promoviendo regla a global.'
+            ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Descarta un candidato.
+     */
+    public function rejectCandidate(
+        string $candidateId,
+        string $userId,
+        string $userRole,
+        array $userPermissions = [],
+        ?string $reason = null
+    ): array {
+        try {
+            $permsHeader = implode(',', $userPermissions);
+            $response = Http::withToken($this->apiKey)
+                ->withHeaders([
+                    'X-User-Id' => $userId,
+                    'X-User-Role' => $userRole,
+                    'X-User-Permissions' => $permsHeader,
+                ])
+                ->timeout(15)
+                ->post("{$this->baseUrl}/knowledge/candidates/{$candidateId}/reject", ['reason' => $reason]);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return ['success' => false, 'message' => $response->json('detail') ?? 'Error descartando candidato.'];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Revierte una regla activa a su estado anterior o la desactiva.
+     */
+    public function rollbackCandidate(
+        string $candidateId,
+        string $userId,
+        string $userRole,
+        array $userPermissions = [],
+        ?string $reason = null
+    ): array {
+        try {
+            $permsHeader = implode(',', $userPermissions);
+            $response = Http::withToken($this->apiKey)
+                ->withHeaders([
+                    'X-User-Id' => $userId,
+                    'X-User-Role' => $userRole,
+                    'X-User-Permissions' => $permsHeader,
+                ])
+                ->timeout(15)
+                ->post("{$this->baseUrl}/knowledge/candidates/{$candidateId}/rollback", ['reason' => $reason]);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return ['success' => false, 'message' => $response->json('detail') ?? 'Error al hacer rollback de la regla.'];
         } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }

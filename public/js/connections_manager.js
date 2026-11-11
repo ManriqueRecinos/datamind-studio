@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DataMind Studio - Gestor Dinámico de Bases de Datos y Vectorización Selectiva
  * Soporta navegación en 3 paneles monolíticos, pre-selección de esquemas y modal de estructura de tabla.
  */
@@ -867,33 +867,30 @@
         banner.classList.add('hidden');
 
         try {
-            // Hacemos test de credenciales para obtener schemas_detected frescos
-            const res = await fetch('/connections/test', {
-                method: 'POST',
+            // Consultar directamente los esquemas usando las credenciales guardadas en el servidor
+            let schemasList = [];
+            let activeSchemasList = conn.selected_schemas || [];
+
+            const res = await fetch(`/connections/${conn.id}/schemas`, {
                 headers: {
-                    'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': csrfToken
-                },
-                body: JSON.stringify({
-                    engine: conn.engine,
-                    host: conn.host,
-                    port: conn.port,
-                    database_name: conn.database_name,
-                    username: conn.username,
-                    password: ''
-                })
+                }
             });
 
             const json = await res.json();
-            let schemasList = [];
             if (res.ok && json.success) {
                 schemasList = json.data.schemas_detected || [];
+                if (json.data.selected_schemas) {
+                    activeSchemasList = json.data.selected_schemas;
+                }
             } else {
-                // Si requiere password o falla test, extraer esquemas ya presentes en las tablas de la conexion
-                const tablesRes = await fetch(`/connections/${conn.id}/tables`);
+                // Fallback de contingencia: extraer esquemas de las tablas inspeccionadas
+                const tablesRes = await fetch(`/connections/${conn.id}/tables`, {
+                    headers: { 'Accept': 'application/json' }
+                });
                 const tablesJson = await tablesRes.json();
-                if (tablesJson.success) {
+                if (tablesJson.success && tablesJson.data) {
                     const schemaCounts = {};
                     (tablesJson.data.tables || []).forEach(t => {
                         const s = t.schema_name || 'public';
@@ -903,8 +900,8 @@
                 }
             }
 
-            const currentActiveSchemas = new Set(conn.selected_schemas || []);
-            const hasExplicitSchemas = (conn.selected_schemas && conn.selected_schemas.length > 0);
+            const currentActiveSchemas = new Set(activeSchemasList || []);
+            const hasExplicitSchemas = (activeSchemasList && activeSchemasList.length > 0);
 
             if (schemasList.length === 0) {
                 grid.innerHTML = '<div class="col-span-full py-3 text-center text-slate-400">No se encontraron múltiples esquemas; se utiliza el esquema por defecto.</div>';

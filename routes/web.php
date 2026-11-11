@@ -33,11 +33,23 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dataset/{datasetId}', [ChatController::class, 'getDataset'])->name('dataset');
         Route::get('/export/{datasetId}', [ChatController::class, 'exportExcel'])->name('export');
 
+        // Adjuntos de Archivos Tabulares en Chat (DuckDB / Polars)
+        Route::post('/attachments', [ChatController::class, 'uploadAttachment'])->name('attachments.upload');
+        Route::delete('/attachments/{id}', [ChatController::class, 'destroyAttachment'])->name('attachments.destroy');
+
         // Entrenamiento de Base de Conocimiento (Requiere permiso chat.train)
         Route::middleware(['permission:chat.train'])->group(function () {
             Route::get('/training/rules', [ChatController::class, 'listKnowledgeRules'])->name('training.list');
             Route::post('/training/train', [ChatController::class, 'trainKnowledgeRule'])->name('training.train');
             Route::delete('/training/rules/{ruleId}', [ChatController::class, 'deleteKnowledgeRule'])->name('training.destroy');
+
+            // Gestión y Curación de Candidatos de Conocimiento Implícito (Fase 1)
+            Route::get('/candidates', [ChatController::class, 'listKnowledgeCandidates'])->name('candidates.list');
+            Route::post('/candidates/{id}/confirm-user', [ChatController::class, 'confirmUserCandidate'])->name('candidates.confirm_user');
+            Route::post('/candidates/{id}/propose-global', [ChatController::class, 'proposeGlobalCandidate'])->name('candidates.propose_global');
+            Route::post('/candidates/{id}/promote-global', [ChatController::class, 'promoteGlobalCandidate'])->name('candidates.promote_global');
+            Route::post('/candidates/{id}/reject', [ChatController::class, 'rejectCandidate'])->name('candidates.reject');
+            Route::post('/candidates/{id}/rollback', [ChatController::class, 'rollbackCandidate'])->name('candidates.rollback');
         });
     });
 
@@ -45,6 +57,7 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('connections')->name('connections.')->group(function () {
         Route::get('/', [DatabaseConnectionController::class, 'index'])->name('index');
         Route::get('/list', [DatabaseConnectionController::class, 'list'])->name('list');
+        Route::get('/{connectionId}/schemas', [DatabaseConnectionController::class, 'schemas'])->name('schemas');
         Route::get('/{connectionId}/tables', [DatabaseConnectionController::class, 'tables'])->name('tables');
 
         // Mutaciones de BD (Requiere permiso connections.manage)

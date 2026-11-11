@@ -86,21 +86,8 @@ class EcosystemSeeder extends Seeder
             ['name' => 'Consola Conversacional', 'icon' => 'fa-message', 'order_num' => 1, 'is_active' => true]
         );
         EcosystemInterface::updateOrCreate(
-            ['module_id' => $mChatOps->id, 'name' => 'Nueva Conversación'],
-            ['icon' => 'fa-plus', 'route_or_action' => '#btnNewChat', 'action_type' => 'trigger', 'badge_label' => 'Directo', 'order_num' => 1]
-        );
-        EcosystemInterface::updateOrCreate(
             ['module_id' => $mChatOps->id, 'name' => 'Centro de Entrenamiento IA'],
-            ['icon' => 'fa-graduation-cap', 'route_or_action' => '#btnOpenTrainingCenter', 'action_type' => 'modal', 'badge_label' => '5 Niveles', 'order_num' => 2]
-        );
-
-        $mHistory = EcosystemModule::updateOrCreate(
-            ['ecosystem_id' => $chat->id, 'key' => 'chat_history'],
-            ['name' => 'Historial de Sesiones', 'icon' => 'fa-clock-rotate-left', 'order_num' => 2, 'is_active' => true]
-        );
-        EcosystemInterface::updateOrCreate(
-            ['module_id' => $mHistory->id, 'name' => 'Mis Conversaciones'],
-            ['icon' => 'fa-comments', 'route_or_action' => '#userSessionsList', 'action_type' => 'anchor', 'badge_label' => null, 'order_num' => 1]
+            ['icon' => 'fa-graduation-cap', 'route_or_action' => '#btnOpenTrainingCenter', 'action_type' => 'modal', 'badge_label' => '5 Niveles', 'order_num' => 1]
         );
 
         // 3. Ecosistema de Vectorización & Bases de Datos
