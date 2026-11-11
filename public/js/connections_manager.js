@@ -1,6 +1,6 @@
 /**
- * DataMind Studio - Gestor Dinámico de Bases de Datos y Vectorización Selectiva
- * Soporta navegación en 3 paneles monolíticos, pre-selección de esquemas y modal de estructura de tabla.
+ * DataMind Studio - Gestor de Bases de Datos & Explorador de Esquemas (Vistas Independientes)
+ * Soporta modal de registro de nueva conexión, modal de edición, y explorador de tablas pgvector.
  */
 
 (function () {
@@ -16,12 +16,13 @@
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
-    // Paneles Principales
-    const panelNewConnection = document.getElementById('panelNewConnection');
-    const panelSavedConnections = document.getElementById('panelSavedConnections');
-    const panelTablesExplorer = document.getElementById('panelTablesExplorer');
+    // Modal de Nueva Conexión
+    const modalNewConnection = document.getElementById('modalNewConnection');
+    const btnOpenNewConnModal = document.getElementById('btnOpenNewConnModal');
+    const btnSidebarOpenNewConn = document.getElementById('btnSidebarOpenNewConn');
+    const btnCloseNewConnModal = document.getElementById('btnCloseNewConnModal');
 
-    // Elementos de Formulario de Conexión
+    // Elementos de Formulario de Nueva Conexión
     const connEngine = document.getElementById('connEngine');
     const connPort = document.getElementById('connPort');
     const btnTestConnection = document.getElementById('btnTestConnection');
@@ -30,7 +31,7 @@
     const detectedSchemasContainer = document.getElementById('detectedSchemasContainer');
     const schemasCheckboxGrid = document.getElementById('schemasCheckboxGrid');
 
-    // Elementos del Explorador de Tablas
+    // Elementos del Explorador de Tablas (si está en la vista explorer)
     const explorerTitle = document.getElementById('explorerTitle');
     const explorerSubtitle = document.getElementById('explorerSubtitle');
     const explorerStatsBadge = document.getElementById('explorerStatsBadge');
@@ -41,6 +42,7 @@
     const tableSearchInput = document.getElementById('tableSearchInput');
     const schemaFilterSelect = document.getElementById('schemaFilterSelect');
     const vectorFilterSelect = document.getElementById('vectorFilterSelect');
+    const connSelectorSelect = document.getElementById('connSelectorSelect');
 
     const btnVectorizeSelected = document.getElementById('btnVectorizeSelected');
     const btnVectorizeText = document.getElementById('btnVectorizeText');
@@ -64,76 +66,52 @@
     const modalIdxEmpty = document.getElementById('modalIdxEmpty');
 
     document.addEventListener('DOMContentLoaded', function () {
-        initNavigation();
+        initNewConnectionModal();
         initFormEvents();
         initExplorerEvents();
         initModalEvents();
         initEditModalEvents();
         bindConnectionCardsEvents();
 
-        // Cargar tablas de la conexión activa inicial si existe
-        const firstCard = document.querySelector('.connection-card') || document.querySelector('.quick-conn-card');
-        if (firstCard) {
-            const firstId = firstCard.getAttribute('data-connection-id');
-            const firstName = firstCard.getAttribute('data-connection-name');
-            if (firstId) {
-                loadConnectionTables(firstId, firstName);
+        // Si estamos en la vista de explorador, inicializar la carga de la base seleccionada
+        if (tablesListBody) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const paramId = urlParams.get('connection_id');
+            const activeCard = document.querySelector('.quick-conn-card.border-datamind-primary') || document.querySelector('.quick-conn-card');
+            
+            const targetId = paramId || (activeCard ? activeCard.getAttribute('data-connection-id') : null) || (connSelectorSelect ? connSelectorSelect.value : null);
+            const targetName = activeCard ? activeCard.getAttribute('data-connection-name') : (connSelectorSelect ? connSelectorSelect.selectedOptions[0]?.getAttribute('data-name') : '');
+
+            if (targetId) {
+                if (connSelectorSelect) connSelectorSelect.value = targetId;
+                loadConnectionTables(targetId, targetName);
             }
         }
     });
 
     /* =========================================================================
-       1. NAVEGACIÓN ENTRE PANELES (Nueva Conexión, Bases Guardadas, Esquemas)
+       1. MODAL DE NUEVA CONEXIÓN DE BASE DE DATOS
        ========================================================================= */
-    function showPanel(panelName) {
-        if (!panelNewConnection || !panelSavedConnections || !panelTablesExplorer) return;
+    function initNewConnectionModal() {
+        const openModal = () => {
+            if (modalNewConnection) {
+                modalNewConnection.classList.remove('hidden');
+                testResultBanner?.classList.add('hidden');
+                detectedSchemasContainer?.classList.add('hidden');
+            }
+        };
 
-        panelNewConnection.classList.add('hidden');
-        panelSavedConnections.classList.add('hidden');
-        panelTablesExplorer.classList.add('hidden');
+        const closeModal = () => {
+            if (modalNewConnection) modalNewConnection.classList.add('hidden');
+        };
 
-        if (panelName === 'new') {
-            panelNewConnection.classList.remove('hidden');
-        } else if (panelName === 'saved') {
-            panelSavedConnections.classList.remove('hidden');
-        } else {
-            panelTablesExplorer.classList.remove('hidden');
-        }
-    }
+        btnOpenNewConnModal?.addEventListener('click', openModal);
+        btnSidebarOpenNewConn?.addEventListener('click', openModal);
+        btnCloseNewConnModal?.addEventListener('click', closeModal);
 
-    function initNavigation() {
-        // Enlaces del sidebar dinamico generados por EcosystemSidebar
-        document.querySelectorAll('a[href="#connectionForm"], button#connectionForm').forEach(el => {
-            el.addEventListener('click', function (e) {
-                e.preventDefault();
-                showPanel('new');
-            });
+        modalNewConnection?.addEventListener('click', function (e) {
+            if (e.target === this) closeModal();
         });
-
-        document.querySelectorAll('a[href="#connectionsContainer"], button#connectionsContainer').forEach(el => {
-            el.addEventListener('click', function (e) {
-                e.preventDefault();
-                showPanel('saved');
-            });
-        });
-
-        document.querySelectorAll('a[href="#tableExplorerPanel"], button#tableExplorerPanel, a[href="#tablesExplorerContainer"]').forEach(el => {
-            el.addEventListener('click', function (e) {
-                e.preventDefault();
-                showPanel('explorer');
-            });
-        });
-
-        document.getElementById('btnSidebarOpenNewConn')?.addEventListener('click', () => showPanel('new'));
-        document.querySelectorAll('.btn-open-new-conn').forEach(b => b.addEventListener('click', () => showPanel('new')));
-        document.querySelectorAll('.btn-switch-to-explorer').forEach(b => b.addEventListener('click', () => showPanel('explorer')));
-
-        // Hash inicial de URL
-        if (window.location.hash === '#connectionForm') {
-            showPanel('new');
-        } else if (window.location.hash === '#connectionsContainer') {
-            showPanel('saved');
-        }
     }
 
     /* =========================================================================
@@ -188,9 +166,9 @@
         }
 
         btnTestConnection.disabled = true;
-        btnTestConnection.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Analizando BD...`;
-        testResultBanner.classList.add('hidden');
-        detectedSchemasContainer.classList.add('hidden');
+        btnTestConnection.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Analizando...`;
+        testResultBanner?.classList.add('hidden');
+        detectedSchemasContainer?.classList.add('hidden');
 
         try {
             const response = await fetch('/connections/test', {
@@ -219,10 +197,9 @@
                 `;
                 testResultBanner.classList.remove('hidden');
 
-                // Renderizar esquemas detectados con checkboxes
                 if (testedSchemasList.length > 0 && schemasCheckboxGrid) {
                     schemasCheckboxGrid.innerHTML = testedSchemasList.map(s => `
-                        <label class="flex items-center gap-2 p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer text-xs">
+                        <label class="flex items-center gap-2 p-1.5 border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-xs">
                             <input type="checkbox" class="chk-schema-detected h-3.5 w-3.5 rounded-none accent-[#0476D9]"
                                 value="${escapeHtml(s.name)}" checked>
                             <span class="font-mono font-bold text-slate-800 truncate">${escapeHtml(s.name)}</span>
@@ -243,7 +220,7 @@
             if (window.toastr) toastr.error(err.message, 'Error de Conexión');
         } finally {
             btnTestConnection.disabled = false;
-            btnTestConnection.innerHTML = `<i class="fa-solid fa-bolt"></i> Analizar y Probar BD`;
+            btnTestConnection.innerHTML = `<i class="fa-solid fa-bolt"></i> Probar Conexión`;
         }
     }
 
@@ -254,7 +231,6 @@
             return;
         }
 
-        // Obtener esquemas marcados
         const selectedSchemas = [];
         document.querySelectorAll('.chk-schema-detected:checked').forEach(chk => {
             selectedSchemas.push(chk.value);
@@ -287,9 +263,9 @@
                 if (window.toastr) {
                     toastr.success(`Base de datos "${created.name}" guardada y activada.`, 'DataMind Studio');
                 }
-                showPanel('explorer');
-                await refreshConnectionsList();
-                await loadConnectionTables(created.id, created.name);
+                modalNewConnection?.classList.add('hidden');
+                // Redirigir al explorador con la base recién creada
+                window.location.href = `/connections/explorer?connection_id=${created.id}`;
             } else {
                 throw new Error(json.message || 'No se pudo guardar la conexión.');
             }
@@ -297,14 +273,23 @@
             if (window.toastr) toastr.error(err.message, 'Error al Guardar');
         } finally {
             btnSaveConnection.disabled = false;
-            btnSaveConnection.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Guardar Conexión`;
+            btnSaveConnection.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Guardar Base`;
         }
     }
 
     /* =========================================================================
-       3. EXPLORADOR DE ESQUEMAS, TABLAS Y DATA TABLE ESTÁTICO
+       3. EXPLORADOR DE ESQUEMAS, TABLAS Y DATA TABLE
        ========================================================================= */
     function initExplorerEvents() {
+        if (connSelectorSelect) {
+            connSelectorSelect.addEventListener('change', function () {
+                const selectedOpt = this.selectedOptions[0];
+                const selectedId = this.value;
+                const selectedName = selectedOpt ? selectedOpt.getAttribute('data-name') : '';
+                loadConnectionTables(selectedId, selectedName);
+            });
+        }
+
         if (btnVectorizeSelected) {
             btnVectorizeSelected.addEventListener('click', handleVectorizeSelected);
         }
@@ -361,14 +346,6 @@
     }
 
     function bindConnectionCardsEvents() {
-        document.querySelectorAll('.btn-inspect-tables').forEach(btn => {
-            btn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                showPanel('explorer');
-                loadConnectionTables(this.getAttribute('data-id'), this.getAttribute('data-name'));
-            });
-        });
-
         document.querySelectorAll('.btn-activate-conn').forEach(btn => {
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
@@ -376,12 +353,13 @@
             });
         });
 
-                document.querySelectorAll('.btn-edit-conn').forEach(btn => {
+        document.querySelectorAll('.btn-edit-conn').forEach(btn => {
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 openEditConnectionModal(this.getAttribute('data-id'));
             });
         });
+
         document.querySelectorAll('.btn-delete-conn').forEach(btn => {
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
@@ -391,32 +369,41 @@
 
         document.querySelectorAll('.quick-conn-card').forEach(card => {
             card.addEventListener('click', function () {
-                showPanel('explorer');
-                loadConnectionTables(
-                    this.getAttribute('data-connection-id'),
-                    this.getAttribute('data-connection-name')
-                );
+                const connId = this.getAttribute('data-connection-id');
+                const connName = this.getAttribute('data-connection-name');
+                if (tablesListBody) {
+                    // Si ya estamos en la vista de explorador, cambiar en vivo
+                    document.querySelectorAll('.quick-conn-card').forEach(c => c.classList.remove('border-datamind-primary', 'bg-slate-50', 'font-bold'));
+                    this.classList.add('border-datamind-primary', 'bg-slate-50', 'font-bold');
+                    if (connSelectorSelect) connSelectorSelect.value = connId;
+                    loadConnectionTables(connId, connName);
+                } else {
+                    // Si estamos en la vista de bases guardadas, navegar al explorador
+                    window.location.href = `/connections/explorer?connection_id=${connId}`;
+                }
             });
         });
     }
 
     async function loadConnectionTables(connectionId, connectionName) {
-        if (!connectionId) return;
+        if (!connectionId || !tablesListBody) return;
         currentConnectionId = connectionId;
         currentConnectionName = connectionName || 'Base de Datos';
         selectedTableNames.clear();
         updateSelectionState();
 
-        explorerTitle.textContent = `Analizando: ${currentConnectionName}...`;
-        tablesEmptyPlaceholder.classList.remove('hidden');
-        tablesEmptyPlaceholder.innerHTML = `
-            <div class="py-12 text-center">
-                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-datamind-primary mb-2"></i>
-                <p class="text-xs font-semibold text-slate-600">Inspeccionando tablas y relaciones...</p>
-            </div>
-        `;
-        tablesGridWrapper.classList.add('hidden');
-        explorerToolbar.classList.add('hidden');
+        if (explorerTitle) explorerTitle.textContent = `Analizando: ${currentConnectionName}...`;
+        tablesEmptyPlaceholder?.classList.remove('hidden');
+        if (tablesEmptyPlaceholder) {
+            tablesEmptyPlaceholder.innerHTML = `
+                <div class="py-12 text-center">
+                    <i class="fa-solid fa-circle-notch fa-spin text-2xl text-datamind-primary mb-2"></i>
+                    <p class="text-xs font-semibold text-slate-600">Inspeccionando tablas y relaciones...</p>
+                </div>
+            `;
+        }
+        tablesGridWrapper?.classList.add('hidden');
+        explorerToolbar?.classList.add('hidden');
 
         try {
             const response = await fetch(`/connections/${connectionId}/tables`, {
@@ -431,12 +418,13 @@
             const payload = json.data;
             allDetectedTables = payload.tables || [];
 
-            explorerTitle.textContent = `Tablas en ${payload.connection.name} (${payload.connection.database_name})`;
-            explorerSubtitle.textContent = `Motor ${payload.connection.engine.toUpperCase()} en ${payload.connection.host}:${payload.connection.port} — Selecciona tablas para pgvector o examina su estructura.`;
-            explorerStatsBadge.textContent = `${payload.total_tables} tablas • ${payload.vectorized_count} vectorizadas`;
-            explorerStatsBadge.classList.remove('hidden');
+            if (explorerTitle) explorerTitle.textContent = `Tablas en ${payload.connection.name} (${payload.connection.database_name})`;
+            if (explorerSubtitle) explorerSubtitle.textContent = `Motor ${payload.connection.engine.toUpperCase()} en ${payload.connection.host}:${payload.connection.port} — Selecciona tablas para pgvector o examina su estructura.`;
+            if (explorerStatsBadge) {
+                explorerStatsBadge.textContent = `${payload.total_tables} tablas • ${payload.vectorized_count} vectorizadas`;
+                explorerStatsBadge.classList.remove('hidden');
+            }
 
-            // Poblar dropdown de esquemas
             if (schemaFilterSelect) {
                 const schemaSet = new Set();
                 allDetectedTables.forEach(t => {
@@ -453,23 +441,23 @@
             }
 
             currentVectorFilter = 'all';
-            if (vectorFilterSelect) {
-                vectorFilterSelect.value = 'all';
-            }
+            if (vectorFilterSelect) vectorFilterSelect.value = 'all';
             updateVectorFilterCounters();
 
-            tablesEmptyPlaceholder.classList.add('hidden');
-            explorerToolbar.classList.remove('hidden');
-            tablesGridWrapper.classList.remove('hidden');
+            tablesEmptyPlaceholder?.classList.add('hidden');
+            explorerToolbar?.classList.remove('hidden');
+            tablesGridWrapper?.classList.remove('hidden');
 
             renderTablesRows(tableSearchInput?.value.trim().toLowerCase() || '');
         } catch (err) {
-            tablesEmptyPlaceholder.innerHTML = `
-                <div class="py-12 text-center text-red-600">
-                    <i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i>
-                    <p class="text-xs font-semibold">${escapeHtml(err.message)}</p>
-                </div>
-            `;
+            if (tablesEmptyPlaceholder) {
+                tablesEmptyPlaceholder.innerHTML = `
+                    <div class="py-12 text-center text-red-600">
+                        <i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i>
+                        <p class="text-xs font-semibold">${escapeHtml(err.message)}</p>
+                    </div>
+                `;
+            }
         }
     }
 
@@ -496,16 +484,9 @@
 
         const filtered = allDetectedTables.filter(t => {
             const schema = t.schema_name || 'public';
-            if (currentSchemaFilter !== 'all' && schema !== currentSchemaFilter) {
-                return false;
-            }
-
-            if (currentVectorFilter === 'vectorized' && !t.is_vectorized) {
-                return false;
-            }
-            if (currentVectorFilter === 'unvectorized' && t.is_vectorized) {
-                return false;
-            }
+            if (currentSchemaFilter !== 'all' && schema !== currentSchemaFilter) return false;
+            if (currentVectorFilter === 'vectorized' && !t.is_vectorized) return false;
+            if (currentVectorFilter === 'unvectorized' && t.is_vectorized) return false;
 
             if (!filterText) return true;
             return t.table_name.toLowerCase().includes(filterText) ||
@@ -553,31 +534,30 @@
             return `
                 <tr class="table-row-item hover:bg-slate-50/70 transition cursor-pointer ${isChecked ? 'bg-slate-50' : ''}"
                     data-table-name="${escapeHtml(t.table_name)}">
-                    <td class="py-2 px-3 text-center">
+                    <td class="py-2.5 px-3 text-center">
                         <input type="checkbox" class="chk-table-item h-3.5 w-3.5 rounded-none accent-[#0476D9] cursor-pointer"
                             value="${escapeHtml(t.table_name)}" ${isChecked ? 'checked' : ''}>
                     </td>
-                    <td class="py-2 px-3">
+                    <td class="py-2.5 px-3">
                         <div class="font-mono font-bold text-slate-900 flex items-center gap-1 text-xs">
                             ${schemaBadge}
                             <span>${escapeHtml(t.table_name)}</span>
                         </div>
                         ${relationBadge}
                     </td>
-                    <td class="py-2 px-3 text-center">
+                    <td class="py-2.5 px-3 text-center">
                         <span class="px-2 py-0.5 rounded-none bg-slate-100 text-slate-700 font-semibold text-[10px]">
                             ${t.columns_count} cols
                         </span>
                     </td>
-                    <td class="py-2 px-3 text-slate-500 font-mono text-[11px] max-w-md truncate" title="${escapeHtml(t.column_names_preview)}">
+                    <td class="py-2.5 px-3 text-slate-500 font-mono text-[11px] max-w-md truncate" title="${escapeHtml(t.column_names_preview)}">
                         ${escapeHtml(t.column_names_preview)}
                     </td>
-                    <td class="py-2 px-3 text-center">${statusBadge}</td>
+                    <td class="py-2.5 px-3 text-center">${statusBadge}</td>
                 </tr>
             `;
         }).join('');
 
-        // Eventos en fila y checkbox
         tablesListBody.querySelectorAll('.table-row-item').forEach(row => {
             row.addEventListener('click', function (e) {
                 if (e.target.tagName === 'INPUT') return;
@@ -643,7 +623,6 @@
             }
         }
 
-        // BOTÓN DE ESTRUCTURA: Habilitado ESTRICTAMENTE cuando count === 1
         if (btnViewTableStructure) {
             if (count === 1) {
                 btnViewTableStructure.disabled = false;
@@ -690,65 +669,68 @@
         const table = allDetectedTables.find(t => t.table_name === targetTableName);
         if (!table) return;
 
-        modalTableTitle.textContent = `${table.schema_name || 'public'}.${table.table_name}`;
-        modalTableSubtitle.textContent = `Diccionario de Datos • ${table.columns_count} columnas • Llave Primaria: ${table.primary_key || 'id'}`;
+        if (modalTableTitle) modalTableTitle.textContent = `${table.schema_name || 'public'}.${table.table_name}`;
+        if (modalTableSubtitle) modalTableSubtitle.textContent = `Diccionario de Datos • ${table.columns_count} columnas • Llave Primaria: ${table.primary_key || 'id'}`;
 
         const cols = table.columns || [];
         const fks = table.foreign_keys || [];
         const idxs = table.indexes || [];
 
-        modalColCount.textContent = cols.length;
-        modalFkCount.textContent = fks.length;
-        modalIdxCount.textContent = idxs.length;
+        if (modalColCount) modalColCount.textContent = cols.length;
+        if (modalFkCount) modalFkCount.textContent = fks.length;
+        if (modalIdxCount) modalIdxCount.textContent = idxs.length;
 
-        // 1. Columnas
-        modalColumnsBody.innerHTML = cols.map(c => `
-            <tr class="hover:bg-slate-50 transition">
-                <td class="py-1.5 px-3 font-bold text-slate-800">
-                    ${escapeHtml(c.name)}
-                    ${(c.name === table.primary_key) ? '<span class="ml-1 text-[9px] px-1 py-0.2 bg-amber-100 text-amber-800 font-mono">PK</span>' : ''}
-                </td>
-                <td class="py-1.5 px-3 text-slate-600">${escapeHtml(c.type || 'varchar')}</td>
-                <td class="py-1.5 px-3 text-center">
-                    ${c.nullable ? '<span class="text-emerald-600">SÍ</span>' : '<span class="text-slate-400 font-bold">NO</span>'}
-                </td>
-                <td class="py-1.5 px-3 text-slate-500 font-sans text-xs">${escapeHtml(c.comment || '—')}</td>
-            </tr>
-        `).join('');
+        if (modalColumnsBody) {
+            modalColumnsBody.innerHTML = cols.map(c => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="py-1.5 px-3 font-bold text-slate-800">
+                        ${escapeHtml(c.name)}
+                        ${(c.name === table.primary_key) ? '<span class="ml-1 text-[9px] px-1 py-0.2 bg-amber-100 text-amber-800 font-mono">PK</span>' : ''}
+                    </td>
+                    <td class="py-1.5 px-3 text-slate-600">${escapeHtml(c.type || 'varchar')}</td>
+                    <td class="py-1.5 px-3 text-center">
+                        ${c.nullable ? '<span class="text-emerald-600">SÍ</span>' : '<span class="text-slate-400 font-bold">NO</span>'}
+                    </td>
+                    <td class="py-1.5 px-3 text-slate-500 font-sans text-xs">${escapeHtml(c.comment || '—')}</td>
+                </tr>
+            `).join('');
+        }
 
-        // 2. Llaves Foráneas
         if (fks.length > 0) {
-            modalFkEmpty.classList.add('hidden');
-            modalFkWrapper.classList.remove('hidden');
-            modalFkBody.innerHTML = fks.map(fk => `
-                <tr class="hover:bg-slate-50 transition">
-                    <td class="py-1.5 px-3 font-bold text-slate-800">${escapeHtml(fk.column)}</td>
-                    <td class="py-1.5 px-3 text-datamind-primary font-bold">${escapeHtml(fk.referenced_table)}</td>
-                    <td class="py-1.5 px-3 text-slate-700">${escapeHtml(fk.referenced_column)}</td>
-                    <td class="py-1.5 px-3 text-slate-500 font-sans text-xs">${escapeHtml((fk.descriptive_columns || []).join(', ') || '—')}</td>
-                </tr>
-            `).join('');
+            modalFkEmpty?.classList.add('hidden');
+            modalFkWrapper?.classList.remove('hidden');
+            if (modalFkBody) {
+                modalFkBody.innerHTML = fks.map(fk => `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="py-1.5 px-3 font-bold text-slate-800">${escapeHtml(fk.column)}</td>
+                        <td class="py-1.5 px-3 text-datamind-primary font-bold">${escapeHtml(fk.referenced_table)}</td>
+                        <td class="py-1.5 px-3 text-slate-700">${escapeHtml(fk.referenced_column)}</td>
+                        <td class="py-1.5 px-3 text-slate-500 font-sans text-xs">${escapeHtml((fk.descriptive_columns || []).join(', ') || '—')}</td>
+                    </tr>
+                `).join('');
+            }
         } else {
-            modalFkEmpty.classList.remove('hidden');
-            modalFkWrapper.classList.add('hidden');
+            modalFkEmpty?.classList.remove('hidden');
+            modalFkWrapper?.classList.add('hidden');
         }
 
-        // 3. Índices
         if (idxs.length > 0) {
-            modalIdxEmpty.classList.add('hidden');
-            modalIdxWrapper.classList.remove('hidden');
-            modalIdxBody.innerHTML = idxs.map(idx => `
-                <tr class="hover:bg-slate-50 transition">
-                    <td class="py-1.5 px-3 font-bold text-slate-800">${escapeHtml(idx.name)}</td>
-                    <td class="py-1.5 px-3 text-slate-600 text-[10px]">${escapeHtml(idx.definition || '—')}</td>
-                </tr>
-            `).join('');
+            modalIdxEmpty?.classList.add('hidden');
+            modalIdxWrapper?.classList.remove('hidden');
+            if (modalIdxBody) {
+                modalIdxBody.innerHTML = idxs.map(idx => `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="py-1.5 px-3 font-bold text-slate-800">${escapeHtml(idx.name)}</td>
+                        <td class="py-1.5 px-3 text-slate-600 text-[10px]">${escapeHtml(idx.definition || '—')}</td>
+                    </tr>
+                `).join('');
+            }
         } else {
-            modalIdxEmpty.classList.remove('hidden');
-            modalIdxWrapper.classList.add('hidden');
+            modalIdxEmpty?.classList.remove('hidden');
+            modalIdxWrapper?.classList.add('hidden');
         }
 
-        modalTableStructure.classList.remove('hidden');
+        modalTableStructure?.classList.remove('hidden');
     }
 
     function closeTableStructureModal() {
@@ -794,7 +776,6 @@
                 toastr.success(`${result.tables_vectorized_now} tablas vectorizadas correctamente.`);
             }
 
-            await refreshConnectionsList();
             await loadConnectionTables(currentConnectionId, currentConnectionName);
         } catch (err) {
             if (window.toastr) toastr.error(err.message, 'Error en Vectorización');
@@ -815,7 +796,7 @@
             const json = await response.json();
             if (response.ok && json.success) {
                 if (window.toastr) toastr.success(`Conexión "${json.data.name}" activada para el Chat.`);
-                await refreshConnectionsList();
+                window.location.reload();
             }
         } catch (err) {
             if (window.toastr) toastr.error('No se pudo activar la conexión.');
@@ -848,18 +829,14 @@
             });
             if (response.ok) {
                 if (window.toastr) toastr.info('Conexión eliminada correctamente.');
-                await refreshConnectionsList();
+                window.location.reload();
             }
         } catch (err) {
             if (window.toastr) toastr.error('Error al eliminar la conexión.');
         }
     }
 
-    async function refreshConnectionsList() {
-        window.location.reload();
-    }
-
-        /* =========================================================================
+    /* =========================================================================
        6. MODAL DE EDICIÓN DE CONEXIÓN Y ESQUEMAS
        ========================================================================= */
     let cachedConnections = [];
@@ -896,8 +873,10 @@
         document.getElementById('editConnPassword').value = '';
 
         const grid = document.getElementById('editSchemasCheckboxGrid');
-        grid.innerHTML = '<div class="col-span-full py-4 text-center text-slate-400"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Detectando esquemas disponibles en la base de datos...</div>';
-        document.getElementById('modalEditConnection').classList.remove('hidden');
+        if (grid) {
+            grid.innerHTML = '<div class="col-span-full py-4 text-center text-slate-400"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Detectando esquemas disponibles en la base de datos...</div>';
+        }
+        document.getElementById('modalEditConnection')?.classList.remove('hidden');
 
         await introspectSchemasForEdit(conn);
     }
@@ -905,10 +884,9 @@
     async function introspectSchemasForEdit(conn) {
         const grid = document.getElementById('editSchemasCheckboxGrid');
         const banner = document.getElementById('editTestResultBanner');
-        banner.classList.add('hidden');
+        banner?.classList.add('hidden');
 
         try {
-            // Consultar directamente los esquemas usando las credenciales guardadas en el servidor
             let schemasList = [];
             let activeSchemasList = conn.selected_schemas || [];
 
@@ -926,7 +904,6 @@
                     activeSchemasList = json.data.selected_schemas;
                 }
             } else {
-                // Fallback de contingencia: extraer esquemas de las tablas inspeccionadas
                 const tablesRes = await fetch(`/connections/${conn.id}/tables`, {
                     headers: { 'Accept': 'application/json' }
                 });
@@ -944,24 +921,28 @@
             const currentActiveSchemas = new Set(activeSchemasList || []);
             const hasExplicitSchemas = (activeSchemasList && activeSchemasList.length > 0);
 
-            if (schemasList.length === 0) {
+            if (schemasList.length === 0 && grid) {
                 grid.innerHTML = '<div class="col-span-full py-3 text-center text-slate-400">No se encontraron múltiples esquemas; se utiliza el esquema por defecto.</div>';
                 return;
             }
 
-            grid.innerHTML = schemasList.map(s => {
-                const isChecked = hasExplicitSchemas ? currentActiveSchemas.has(s.name) : true;
-                return `
-                    <label class="flex items-center gap-2 p-1.5 border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-xs">
-                        <input type="checkbox" class="chk-edit-schema h-3.5 w-3.5 rounded-none accent-[#0476D9]"
-                            value="${escapeHtml(s.name)}" ${isChecked ? 'checked' : ''}>
-                        <span class="font-mono font-bold text-slate-800 truncate">${escapeHtml(s.name)}</span>
-                        <span class="ml-auto text-[10px] text-slate-500 font-semibold">(${s.tables_count} tablas)</span>
-                    </label>
-                `;
-            }).join('');
+            if (grid) {
+                grid.innerHTML = schemasList.map(s => {
+                    const isChecked = hasExplicitSchemas ? currentActiveSchemas.has(s.name) : true;
+                    return `
+                        <label class="flex items-center gap-2 p-1.5 border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-xs">
+                            <input type="checkbox" class="chk-edit-schema h-3.5 w-3.5 rounded-none accent-[#0476D9]"
+                                value="${escapeHtml(s.name)}" ${isChecked ? 'checked' : ''}>
+                            <span class="font-mono font-bold text-slate-800 truncate">${escapeHtml(s.name)}</span>
+                            <span class="ml-auto text-[10px] text-slate-500 font-semibold">(${s.tables_count} tablas)</span>
+                        </label>
+                    `;
+                }).join('');
+            }
         } catch (err) {
-            grid.innerHTML = `<div class="col-span-full py-3 text-center text-red-500">Error al detectar esquemas: ${escapeHtml(err.message)}</div>`;
+            if (grid) {
+                grid.innerHTML = `<div class="col-span-full py-3 text-center text-red-500">Error al detectar esquemas: ${escapeHtml(err.message)}</div>`;
+            }
         }
     }
 
@@ -1006,8 +987,8 @@
             const json = await res.json();
             if (res.ok && json.success) {
                 if (window.toastr) toastr.success(`Conexión "${name}" actualizada correctamente.`, 'DataMind Studio');
-                document.getElementById('modalEditConnection').classList.add('hidden');
-                await refreshConnectionsList();
+                document.getElementById('modalEditConnection')?.classList.add('hidden');
+                window.location.reload();
             } else {
                 throw new Error(json.message || 'Error al actualizar la conexión.');
             }

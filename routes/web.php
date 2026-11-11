@@ -57,6 +57,7 @@ Route::middleware(['auth'])->group(function () {
     // ECOSISTEMA 2: Gestor Dinámico de Bases de Datos & Vectorización
     Route::prefix('connections')->name('connections.')->group(function () {
         Route::get('/', [DatabaseConnectionController::class, 'index'])->name('index');
+        Route::get('/explorer', [DatabaseConnectionController::class, 'explorer'])->name('explorer');
         Route::get('/list', [DatabaseConnectionController::class, 'list'])->name('list');
         Route::get('/{connectionId}/schemas', [DatabaseConnectionController::class, 'schemas'])->name('schemas');
         Route::get('/{connectionId}/tables', [DatabaseConnectionController::class, 'tables'])->name('tables');

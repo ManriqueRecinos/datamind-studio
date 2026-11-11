@@ -19,7 +19,7 @@ class DatabaseConnectionController extends Controller
     }
 
     /**
-     * Muestra la vista de gestión de bases de datos y explorador de tablas para vectorización.
+     * Muestra la vista dedicada de Bases de Datos Guardadas y registro modal.
      */
     public function index()
     {
@@ -29,6 +29,30 @@ class DatabaseConnectionController extends Controller
         return view('connections.index', [
             'isOnline' => $isOnline,
             'connections' => $connections,
+        ]);
+    }
+
+    /**
+     * Muestra la vista dedicada del Explorador de Esquemas y Tablas para Vectorización.
+     */
+    public function explorer(Request $request)
+    {
+        $isOnline = $this->fastApiClient->checkHealth();
+        $connections = $isOnline ? $this->fastApiClient->listConnections() : [];
+        $activeConnection = collect($connections)->firstWhere('is_active', true) ?? ($connections[0] ?? null);
+
+        $selectedConnectionId = $request->query('connection_id');
+        if ($selectedConnectionId) {
+            $matched = collect($connections)->firstWhere('id', (int) $selectedConnectionId);
+            if ($matched) {
+                $activeConnection = $matched;
+            }
+        }
+
+        return view('connections.explorer', [
+            'isOnline' => $isOnline,
+            'connections' => $connections,
+            'activeConnection' => $activeConnection,
         ]);
     }
 
