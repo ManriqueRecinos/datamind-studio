@@ -11,6 +11,7 @@
     let allDetectedTables = [];
     let selectedTableNames = new Set();
     let currentSchemaFilter = 'all';
+    let currentVectorFilter = 'all';
     let testedSchemasList = [];
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -39,6 +40,7 @@
     const tablesListBody = document.getElementById('tablesListBody');
     const tableSearchInput = document.getElementById('tableSearchInput');
     const schemaFilterSelect = document.getElementById('schemaFilterSelect');
+    const vectorFilterSelect = document.getElementById('vectorFilterSelect');
 
     const btnVectorizeSelected = document.getElementById('btnVectorizeSelected');
     const btnVectorizeText = document.getElementById('btnVectorizeText');
@@ -310,6 +312,14 @@
         if (schemaFilterSelect) {
             schemaFilterSelect.addEventListener('change', function () {
                 currentSchemaFilter = this.value;
+                updateVectorFilterCounters();
+                renderTablesRows(tableSearchInput?.value.trim().toLowerCase() || '');
+            });
+        }
+
+        if (vectorFilterSelect) {
+            vectorFilterSelect.addEventListener('change', function () {
+                currentVectorFilter = this.value;
                 renderTablesRows(tableSearchInput?.value.trim().toLowerCase() || '');
             });
         }
@@ -442,6 +452,12 @@
                 currentSchemaFilter = 'all';
             }
 
+            currentVectorFilter = 'all';
+            if (vectorFilterSelect) {
+                vectorFilterSelect.value = 'all';
+            }
+            updateVectorFilterCounters();
+
             tablesEmptyPlaceholder.classList.add('hidden');
             explorerToolbar.classList.remove('hidden');
             tablesGridWrapper.classList.remove('hidden');
@@ -457,12 +473,37 @@
         }
     }
 
+    function updateVectorFilterCounters() {
+        if (!vectorFilterSelect) return;
+        const currentTablesForSchema = allDetectedTables.filter(t => {
+            const schema = t.schema_name || 'public';
+            return (currentSchemaFilter === 'all' || schema === currentSchemaFilter);
+        });
+        const total = currentTablesForSchema.length;
+        const vectorized = currentTablesForSchema.filter(t => t.is_vectorized).length;
+        const unvectorized = total - vectorized;
+
+        const currentVal = vectorFilterSelect.value || 'all';
+        vectorFilterSelect.innerHTML = `
+            <option value="all" ${currentVal === 'all' ? 'selected' : ''}>Todas (${total})</option>
+            <option value="vectorized" ${currentVal === 'vectorized' ? 'selected' : ''}>Solo Vectorizadas (${vectorized})</option>
+            <option value="unvectorized" ${currentVal === 'unvectorized' ? 'selected' : ''}>Solo No Vectorizadas (${unvectorized})</option>
+        `;
+    }
+
     function renderTablesRows(filterText = '') {
         if (!tablesListBody) return;
 
         const filtered = allDetectedTables.filter(t => {
             const schema = t.schema_name || 'public';
             if (currentSchemaFilter !== 'all' && schema !== currentSchemaFilter) {
+                return false;
+            }
+
+            if (currentVectorFilter === 'vectorized' && !t.is_vectorized) {
+                return false;
+            }
+            if (currentVectorFilter === 'unvectorized' && t.is_vectorized) {
                 return false;
             }
 

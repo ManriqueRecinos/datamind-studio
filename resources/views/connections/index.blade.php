@@ -302,6 +302,17 @@
                             </select>
                         </div>
 
+                        <!-- Selector de Estado de Vectorización (Todas / Vectorizadas / No Vectorizadas) -->
+                        <div class="flex items-center gap-1 border border-slate-200 bg-white px-2 py-0.5 rounded-none text-xs">
+                            <i class="fa-solid fa-wand-magic-sparkles text-amber-500 text-[11px]"></i>
+                            <span class="text-[10px] font-bold text-slate-500 uppercase">Estado IA:</span>
+                            <select id="vectorFilterSelect" class="bg-transparent border-0 text-xs font-bold text-slate-800 focus:outline-hidden cursor-pointer py-0.5">
+                                <option value="all">Todas las Tablas</option>
+                                <option value="vectorized">Solo Vectorizadas</option>
+                                <option value="unvectorized">Solo No Vectorizadas</option>
+                            </select>
+                        </div>
+
                         <button type="button" id="btnSelectAllVisible" class="text-xs font-semibold px-2 py-0.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer rounded-none">
                             <i class="fa-solid fa-check-double mr-1 text-datamind-primary"></i> Visibles
                         </button>
