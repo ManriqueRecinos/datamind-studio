@@ -558,6 +558,29 @@ class FastApiClient
     }
 
     /**
+     * Ingesta y vectoriza un documento (PDF, Excel, Word, Markdown, Texto) en pgvector.
+     */
+    public function ingestKnowledgeDocument(array $payload): array
+    {
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(120)
+                ->post("{$this->baseUrl}/knowledge/ingest", $payload);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return [
+                'success' => false,
+                'message' => $response->json('detail') ?? 'No se pudo vectorizar el documento en la base de conocimiento.',
+            ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
      * Elimina una regla o cápsula de entrenamiento de pgvector.
      */
     public function deleteKnowledgeRule(string $ruleId): array

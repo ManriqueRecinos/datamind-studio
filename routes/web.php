@@ -6,6 +6,7 @@ use App\Http\Controllers\DatabaseConnectionController;
 use App\Http\Controllers\HubController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -69,6 +70,12 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/{connectionId}/vectorize', [DatabaseConnectionController::class, 'vectorize'])->name('vectorize');
             Route::delete('/{connectionId}', [DatabaseConnectionController::class, 'destroy'])->name('destroy');
         });
+    });
+
+    // CENTRO DE APRENDIZAJE & INGESTA DE DOCUMENTOS (Ecosistema de Vectorización)
+    Route::prefix('training')->name('training.')->group(function () {
+        Route::get('/', [TrainingController::class, 'index'])->name('index');
+        Route::post('/ingest', [TrainingController::class, 'ingestFile'])->name('ingest');
     });
 
     // ECOSISTEMA 3: Configuración & Apariencia
