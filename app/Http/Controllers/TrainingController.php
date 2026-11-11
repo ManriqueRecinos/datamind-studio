@@ -19,14 +19,14 @@ class TrainingController extends Controller
      */
     public function index(Request $request): View
     {
-        $connectionsRes = $this->fastApiClient->listConnections();
-        $connections = $connectionsRes['success'] ? ($connectionsRes['data'] ?? []) : [];
+        $isOnline = $this->fastApiClient->isOnline();
+        $connections = $isOnline ? $this->fastApiClient->listConnections() : [];
         $activeConnection = collect($connections)->firstWhere('is_active', true) ?? ($connections[0] ?? null);
 
         return view('training.index', [
             'connections' => $connections,
             'activeConnection' => $activeConnection,
-            'isOnline' => $this->fastApiClient->isOnline(),
+            'isOnline' => $isOnline,
         ]);
     }
 
