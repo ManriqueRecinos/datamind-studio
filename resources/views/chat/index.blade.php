@@ -174,6 +174,7 @@
         <script src="{{ asset('js/global_js/jquery.dataTables.min.js') }}"></script>
         <script src="{{ asset('js/global_js/chart.umd.min.js') }}"></script>
         <script src="{{ asset('js/chat_stream.js') }}"></script>
+        <script src="{{ asset('js/training_manager.js') }}"></script>
     </x-slot:scripts>
 
 </x-app-layout>

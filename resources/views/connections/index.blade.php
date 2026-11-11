@@ -591,8 +591,14 @@
         </div>
     </div>
 
+    <!-- Modal de Entrenamiento de la IA -->
+    <x-slot:modals>
+        @include('chat.partials.training-center-modal')
+    </x-slot:modals>
+
     <x-slot:scripts>
         <script src="{{ asset('js/connections_manager.js') }}"></script>
+        <script src="{{ asset('js/training_manager.js') }}"></script>
     </x-slot:scripts>
 
 </x-app-layout>
