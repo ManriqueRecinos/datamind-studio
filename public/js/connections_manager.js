@@ -80,11 +80,21 @@
             const activeCard = document.querySelector('.quick-conn-card.border-datamind-primary') || document.querySelector('.quick-conn-card');
             
             const targetId = paramId || (activeCard ? activeCard.getAttribute('data-connection-id') : null) || (connSelectorSelect ? connSelectorSelect.value : null);
-            const targetName = activeCard ? activeCard.getAttribute('data-connection-name') : (connSelectorSelect ? connSelectorSelect.selectedOptions[0]?.getAttribute('data-name') : '');
+            const targetName = (connSelectorSelect && connSelectorSelect.selectedOptions[0]?.getAttribute('data-name')) || 
+                               (activeCard ? activeCard.getAttribute('data-connection-name') : '') || 'Base de Datos';
 
             if (targetId) {
                 if (connSelectorSelect) connSelectorSelect.value = targetId;
                 loadConnectionTables(targetId, targetName);
+            } else {
+                if (tablesEmptyPlaceholder) {
+                    tablesEmptyPlaceholder.innerHTML = `
+                        <div class="py-12 text-center text-slate-400">
+                            <i class="fa-solid fa-database text-3xl mb-2 text-slate-300"></i>
+                            <p class="text-xs font-semibold text-slate-600">No hay ninguna base de datos registrada para inspeccionar.</p>
+                        </div>
+                    `;
+                }
             }
         }
     });
@@ -438,10 +448,12 @@
                         return `<option value="${escapeHtml(s)}">${escapeHtml(s)} (${count})</option>`;
                     }).join('');
                 currentSchemaFilter = 'all';
+                schemaFilterSelect.value = 'all';
             }
 
             currentVectorFilter = 'all';
             if (vectorFilterSelect) vectorFilterSelect.value = 'all';
+            if (tableSearchInput) tableSearchInput.value = '';
             updateVectorFilterCounters();
 
             tablesEmptyPlaceholder?.classList.add('hidden');

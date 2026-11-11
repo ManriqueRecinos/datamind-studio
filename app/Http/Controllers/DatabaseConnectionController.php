@@ -43,7 +43,7 @@ class DatabaseConnectionController extends Controller
 
         $selectedConnectionId = $request->query('connection_id');
         if ($selectedConnectionId) {
-            $matched = collect($connections)->firstWhere('id', (int) $selectedConnectionId);
+            $matched = collect($connections)->firstWhere('id', (string) $selectedConnectionId);
             if ($matched) {
                 $activeConnection = $matched;
             }
