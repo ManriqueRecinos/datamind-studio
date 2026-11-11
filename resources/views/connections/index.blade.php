@@ -49,14 +49,6 @@
                     @endforelse
                 </div>
             </div>
-
-            <!-- Botón Rápido para Crear Conexión con Modal -->
-            <div class="p-3 bg-slate-50/50 mt-auto">
-                <button type="button" id="btnSidebarOpenNewConn"
-                        class="w-full py-2 px-3 bg-datamind-primary hover:opacity-95 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer rounded-none transition">
-                    <i class="fa-solid fa-plus"></i> Conectar Base de Datos
-                </button>
-            </div>
         </aside>
 
         <!-- Columna Derecha: Vista Monolítica de Bases Guardadas -->

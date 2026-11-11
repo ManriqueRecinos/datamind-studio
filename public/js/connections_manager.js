@@ -611,15 +611,15 @@
             selectedCountBadge.textContent = `${count} ${count === 1 ? 'tabla' : 'tablas'}`;
         }
 
-        if (btnVectorizeSelected && btnVectorizeText) {
+        if (btnVectorizeSelected) {
             if (count > 0) {
                 btnVectorizeSelected.disabled = false;
                 btnVectorizeSelected.classList.remove('opacity-50', 'cursor-not-allowed');
-                btnVectorizeText.textContent = `Vectorizar Seleccionadas (${count})`;
+                btnVectorizeSelected.innerHTML = `<i class="fa-solid fa-brain"></i> <span id="btnVectorizeText">Vectorizar Seleccionadas (${count})</span>`;
             } else {
                 btnVectorizeSelected.disabled = true;
                 btnVectorizeSelected.classList.add('opacity-50', 'cursor-not-allowed');
-                btnVectorizeText.textContent = 'Vectorizar Seleccionadas (0)';
+                btnVectorizeSelected.innerHTML = `<i class="fa-solid fa-brain"></i> <span id="btnVectorizeText">Vectorizar Seleccionadas (0)</span>`;
             }
         }
 
@@ -776,6 +776,8 @@
                 toastr.success(`${result.tables_vectorized_now} tablas vectorizadas correctamente.`);
             }
 
+            // Limpiar selección de tablas vectorizadas
+            selectedTableNames.clear();
             await loadConnectionTables(currentConnectionId, currentConnectionName);
         } catch (err) {
             if (window.toastr) toastr.error(err.message, 'Error en Vectorización');

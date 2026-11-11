@@ -31,13 +31,17 @@
         <!-- Módulos e Interfaces Cargados Dinámicamente desde Base de Datos -->
         <div class="space-y-3">
             @foreach($ecosystem->modules as $mod)
-                <div>
-                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                        <i class="fa-solid {{ $mod->icon }} text-datamind-primary text-[10px]"></i> {{ $mod->name }}
-                    </h4>
-                    <div class="space-y-1">
-                        @foreach($mod->interfaces as $iface)
-                            @if($iface->action_type === 'trigger')
+                @php
+                    $activeInterfaces = $mod->interfaces->where('is_active', true);
+                @endphp
+                @if($activeInterfaces->isNotEmpty())
+                    <div>
+                        <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid {{ $mod->icon }} text-datamind-primary text-[10px]"></i> {{ $mod->name }}
+                        </h4>
+                        <div class="space-y-1">
+                            @foreach($activeInterfaces as $iface)
+                                @if($iface->action_type === 'trigger')
                                 <button type="button"
                                         id="{{ ltrim($iface->route_or_action, '#') }}"
                                         class="w-full text-left p-2 border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-xs text-slate-700 hover:text-slate-900 transition flex items-center justify-between rounded-none cursor-pointer">
@@ -87,6 +91,7 @@
                         @endforeach
                     </div>
                 </div>
+                @endif
             @endforeach
         </div>
     </div>
