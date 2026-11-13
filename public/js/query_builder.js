@@ -28,6 +28,40 @@
             .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
     }
 
+    /**
+     * Genera un alias mnemotécnico e intuitivo basado en el nombre de la tabla:
+     *  - Una palabra (ej: 'usuario' o 'roles'): 2 primeras letras ('us', 'ro').
+     *  - Dos palabras (ej: 'usuario_empresa'): primera letra de la 1ra + 2 primeras de la 2da ('uem').
+     *  - Tres o más palabras (ej: 'usuario_empresa_ola_mundo'): inicial de cada palabra ('ueom').
+     */
+    function generateSmartAlias(tableName, existingAliases = []) {
+        if (!tableName) return '';
+        const cleaned = String(tableName).toLowerCase().trim();
+        const parts = cleaned.split(/[^a-z0-9]+/).filter(Boolean);
+        if (parts.length === 0) return 't1';
+
+        let baseAlias = '';
+        if (parts.length === 1) {
+            const w = parts[0];
+            baseAlias = w.length >= 2 ? w.substring(0, 2) : w;
+        } else if (parts.length === 2) {
+            const p1 = parts[0];
+            const p2 = parts[1];
+            baseAlias = `${p1.charAt(0)}${p2.length >= 2 ? p2.substring(0, 2) : p2}`;
+        } else {
+            baseAlias = parts.map(p => p.charAt(0)).join('');
+        }
+
+        // Si ya existe ese alias en otra tabla de la misma query, agregar sufijo numérico (ej. us, us2, us3)
+        let candidate = baseAlias;
+        let counter = 2;
+        const set = new Set(existingAliases.map(a => String(a).toLowerCase()));
+        while (set.has(candidate.toLowerCase())) {
+            candidate = `${baseAlias}${counter++}`;
+        }
+        return candidate;
+    }
+
     class QueryBuilder {
         constructor(options) {
             this.container = options.container;
@@ -440,6 +474,15 @@
         }
 
         async onBaseTableSelected(tableName) {
+            // Generar alias mnemotécnico si el usuario no ingresó uno propio personalizado
+            const currentAlias = (this.state.base.alias || '').trim();
+            if (!currentAlias || currentAlias === 't1' || /^t\d+$/.test(currentAlias)) {
+                const smart = generateSmartAlias(tableName, []);
+                this.state.base.alias = smart;
+                const aliasInput = this.container.querySelector('.qb-base-alias');
+                if (aliasInput) aliasInput.value = smart;
+            }
+
             await this.fetchTableColumns(tableName);
             this.refreshAllAliasSelectors();
             this.updateOrderColumnsDropdown();
@@ -608,11 +651,20 @@
 
             // Inicializar Picker de Tabla
             const pickerEl = row.querySelector('.qb-join-table-picker');
+            const aliasInput = row.querySelector('.qb-join-alias');
             if (window.TablePicker) {
                 TablePicker.init(pickerEl, {
                     getConnectionId: this.getConnectionId,
                     onSelect: async (tableName) => {
                         joinObj.table = tableName;
+                        // Autocalcular alias inteligente según las reglas (1 palabra -> 2 letras, 2 palabras -> 1ra + 2 letras, 3+ -> siglas)
+                        const existingAliases = this.getAvailableSources().map(s => s.alias).filter(a => a && a !== joinObj.alias);
+                        const smartAlias = generateSmartAlias(tableName, existingAliases);
+                        joinObj.alias = smartAlias;
+                        if (aliasInput) {
+                            aliasInput.value = smartAlias;
+                        }
+
                         await this.fetchTableColumns(tableName);
                         this.refreshAllAliasSelectors();
                         this.autoSuggestJoinOn(joinObj, row);
