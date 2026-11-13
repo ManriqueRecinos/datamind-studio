@@ -26,7 +26,7 @@
     <div class="w-full px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
         <!-- Izquierda: Identidad de Marca + Botón Switcher Recto de Ecosistema -->
         <div class="flex items-center gap-4 min-w-0">
-            <a href="{{ route('hub.index') }}" class="h-9 w-9 bg-datamind-gradient flex items-center justify-center text-white font-bold text-base hover:opacity-95 transition shrink-0 rounded-none shadow-none" title="Ir al Hub de Inicio">
+            <a href="{{ auth()->check() ? route('hub.index') : route('chat.index') }}" class="h-9 w-9 bg-datamind-gradient flex items-center justify-center text-white font-bold text-base hover:opacity-95 transition shrink-0 rounded-none shadow-none" title="Ir al Inicio">
                 <i class="fa-solid fa-brain"></i>
             </a>
             <div class="min-w-0 flex items-center gap-2.5">

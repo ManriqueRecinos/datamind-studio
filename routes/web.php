@@ -16,23 +16,29 @@ Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
 Route::post('/register', [AuthController::class, 'register'])->name('register.submit');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Rutas de Inicio y Hub de Selección de Ecosistemas
-Route::get('/', [HubController::class, 'index'])->name('home');
-Route::get('/hub', [HubController::class, 'index'])->name('hub.index');
+// Ruta de Inicio Directo a la Consola de Chat (Pública / Modo Libre)
+Route::get('/', [ChatController::class, 'index'])->name('home');
+
+// Rutas Públicas del Chat (Acceso Libre & Consultas de Conocimiento Global)
+Route::prefix('chat')->name('chat.')->group(function () {
+    Route::get('/', [ChatController::class, 'index'])->name('index');
+    Route::post('/send', [ChatController::class, 'send'])->name('send');
+    Route::post('/stream', [ChatController::class, 'stream'])->name('stream');
+    Route::get('/dataset/{datasetId}', [ChatController::class, 'getDataset'])->name('dataset');
+    Route::get('/export/{datasetId}', [ChatController::class, 'exportExcel'])->name('export');
+});
 
 // Rutas Operativas Protegidas por Autenticación de Usuario (auth)
 Route::middleware(['auth'])->group(function () {
 
-    // ECOSISTEMA 1: Chat & Analítica Inteligente IA
+    // Hub de Selección de Ecosistemas (Solo para usuarios autenticados)
+    Route::get('/hub', [HubController::class, 'index'])->name('hub.index');
+
+    // ECOSISTEMA 1: Chat Privado (Sesiones, Adjuntos y Entrenamiento)
     Route::prefix('chat')->name('chat.')->group(function () {
-        Route::get('/', [ChatController::class, 'index'])->name('index');
-        Route::post('/send', [ChatController::class, 'send'])->name('send');
-        Route::post('/stream', [ChatController::class, 'stream'])->name('stream');
         Route::get('/sessions', [ChatController::class, 'listSessions'])->name('sessions.list');
         Route::get('/sessions/{sessionId}', [ChatController::class, 'showSession'])->name('sessions.show');
         Route::delete('/sessions/{sessionId}', [ChatController::class, 'destroySession'])->name('sessions.destroy');
-        Route::get('/dataset/{datasetId}', [ChatController::class, 'getDataset'])->name('dataset');
-        Route::get('/export/{datasetId}', [ChatController::class, 'exportExcel'])->name('export');
 
         // Adjuntos de Archivos Tabulares en Chat (DuckDB / Polars)
         Route::post('/attachments', [ChatController::class, 'uploadAttachment'])->name('attachments.upload');

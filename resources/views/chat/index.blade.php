@@ -27,18 +27,35 @@
 
             <!-- Selector Recto de Base de Datos Activa para Chat -->
             <div class="p-3.5 border-b border-slate-200 bg-white">
-                <label for="activeConnectionSelect" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <i class="fa-solid fa-database text-datamind-primary text-[10px]"></i> Base de Datos para Consultas
-                </label>
-                <select id="activeConnectionSelect" class="w-full bg-slate-50 text-xs font-semibold text-slate-800 p-2 border border-slate-200 focus:outline-hidden cursor-pointer rounded-none" title="Seleccionar base de datos para consultas SQL">
-                    @forelse($connections ?? [] as $conn)
-                        <option value="{{ $conn['id'] }}" {{ !empty($conn['is_active']) ? 'selected' : '' }}>
-                            {{ $conn['name'] }} ({{ strtoupper($conn['engine']) }}: {{ $conn['database_name'] }})
-                        </option>
-                    @empty
-                        <option value="">Base de Datos por Defecto</option>
-                    @endforelse
-                </select>
+                <div class="flex items-center justify-between mb-1">
+                    <label for="activeConnectionSelect" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                        <i class="fa-solid fa-database text-datamind-primary text-[10px]"></i> Base de Datos / Alcance
+                    </label>
+                    @guest
+                        <a href="{{ route('login') }}" class="text-[9px] font-bold text-datamind-primary hover:underline">
+                            Iniciar Sesión <i class="fa-solid fa-arrow-right ml-0.5"></i>
+                        </a>
+                    @endguest
+                </div>
+
+                @guest
+                    <select id="activeConnectionSelect" class="w-full bg-slate-50 text-xs font-semibold text-slate-800 p-2 border border-slate-200 focus:outline-hidden rounded-none" title="Conocimiento global de todas las bases y documentos">
+                        <option value="global" selected>🌐 Conocimiento Global (Todo)</option>
+                    </select>
+                    <p class="text-[10px] text-slate-400 mt-1">
+                        <i class="fa-solid fa-lock text-[9px] mr-0.5"></i> Modo Libre: Consultas conceptuales y reglas generales. Inicia sesión para conectar bases específicas.
+                    </p>
+                @else
+                    <select id="activeConnectionSelect" class="w-full bg-slate-50 text-xs font-semibold text-slate-800 p-2 border border-slate-200 focus:outline-hidden cursor-pointer rounded-none" title="Seleccionar base de datos para consultas SQL">
+                        <option value="global">🌐 Conocimiento Global (Todas las Bases & Conceptos)</option>
+                        @forelse($connections ?? [] as $conn)
+                            <option value="{{ $conn['id'] }}" {{ !empty($conn['is_active']) ? 'selected' : '' }}>
+                                {{ $conn['name'] }} ({{ strtoupper($conn['engine']) }}: {{ $conn['database_name'] }})
+                            </option>
+                        @empty
+                        @endforelse
+                    </select>
+                @endguest
             </div>
 
             <!-- Módulo: Historial de Conversaciones del Usuario (Recto) -->
