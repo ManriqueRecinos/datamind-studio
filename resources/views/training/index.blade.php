@@ -98,24 +98,30 @@
                     <!-- Selección de Categoría en Tarjetas -->
                     <div>
                         <label class="block text-[11px] font-bold text-slate-700 mb-1.5 uppercase">Selecciona el Tipo de Enseñanza:</label>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
                             <button type="button" data-category="custom_relation" class="template-type-btn active p-3 border-2 border-datamind-primary bg-datamind-light/10 text-left transition cursor-pointer rounded-none">
                                 <div class="text-xs font-bold text-datamind-dark flex items-center gap-1.5 mb-1">
                                     <i class="fa-solid fa-link text-datamind-primary"></i> Unir 2 Tablas (JOIN)
                                 </div>
-                                <p class="text-[10px] text-slate-500 leading-tight">Conecta tablas foráneas y muestra el nombre en vez del código ID.</p>
+                                <p class="text-[10px] text-slate-500 leading-tight">Conecta tablas foráneas simples y sugiere campos legibles.</p>
+                            </button>
+                            <button type="button" data-category="composite_query" class="template-type-btn p-3 border border-slate-200 hover:border-slate-400 bg-white text-left transition cursor-pointer rounded-none">
+                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5 mb-1">
+                                    <i class="fa-solid fa-diagram-project text-purple-600"></i> Consulta Compuesta (Builder)
+                                </div>
+                                <p class="text-[10px] text-slate-500 leading-tight">Constructor visual & script SQL enorme (múltiples JOINs, UNIONs y filtros).</p>
                             </button>
                             <button type="button" data-category="business_rule" class="template-type-btn p-3 border border-slate-200 hover:border-slate-400 bg-white text-left transition cursor-pointer rounded-none">
                                 <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5 mb-1">
                                     <i class="fa-solid fa-tags text-amber-600"></i> Códigos y Estados
                                 </div>
-                                <p class="text-[10px] text-slate-500 leading-tight">Explica qué significa un número o letra (ej: 'A' = Activo, '1' = En Proceso).</p>
+                                <p class="text-[10px] text-slate-500 leading-tight">Explica qué significa un número o letra (ej: 'A' = Activo).</p>
                             </button>
                             <button type="button" data-category="sql_example" class="template-type-btn p-3 border border-slate-200 hover:border-slate-400 bg-white text-left transition cursor-pointer rounded-none">
                                 <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5 mb-1">
                                     <i class="fa-solid fa-code text-indigo-600"></i> Consulta SQL Ejemplo
                                 </div>
-                                <p class="text-[10px] text-slate-500 leading-tight">Pega un SELECT de oro verificado para que la IA lo use de plantilla.</p>
+                                <p class="text-[10px] text-slate-500 leading-tight">Pega un SELECT de oro verificado para usar de plantilla.</p>
                             </button>
                             <button type="button" data-category="kpi_formula" class="template-type-btn p-3 border border-slate-200 hover:border-slate-400 bg-white text-left transition cursor-pointer rounded-none">
                                 <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5 mb-1">
@@ -174,6 +180,11 @@
                             </div>
                             <textarea id="trainSqlQueryInput" rows="3" placeholder="SELECT u.name AS usuario, r.name AS rol FROM users u JOIN role_user ru ON u.id = ru.user_id JOIN roles r ON ru.role_id = r.id LIMIT 20;"
                                       class="w-full px-3 py-2 border border-slate-700 bg-slate-950 text-emerald-300 font-mono text-xs rounded-none focus:border-emerald-500 focus:outline-hidden custom-scrollbar"></textarea>
+                        </div>
+
+                        <!-- Constructor Visual & Script de Consultas Compuestas (Fase 2) -->
+                        <div id="compositeQueryBox" class="hidden space-y-2">
+                            <div id="queryBuilderContainer"></div>
                         </div>
 
                         <div>
@@ -353,6 +364,7 @@
     <x-slot:scripts>
         <script src="{{ asset('js/table_picker.js') }}"></script>
         <script src="{{ asset('js/relation_selectors.js') }}"></script>
+        <script src="{{ asset('js/query_builder.js') }}"></script>
         <script src="{{ asset('js/training_view.js') }}"></script>
     </x-slot:scripts>
 

@@ -85,6 +85,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/ingest', [TrainingController::class, 'ingestFile'])->name('ingest');
         Route::get('/vectorized-tables', [TrainingController::class, 'vectorizedTables'])->name('tables');
         Route::get('/vectorized-tables/columns', [TrainingController::class, 'tableColumns'])->name('columns');
+        Route::post('/query-blueprint/parse', [TrainingController::class, 'parseBlueprint'])->name('blueprint.parse');
+        Route::post('/query-blueprint/compile', [TrainingController::class, 'compileBlueprint'])->name('blueprint.compile');
+        Route::post('/query-blueprint/validate', [TrainingController::class, 'validateBlueprint'])->name('blueprint.validate');
+        Route::post('/query-blueprint/dry-run', [TrainingController::class, 'dryRunBlueprint'])->name('blueprint.dry_run');
     });
 
     // ECOSISTEMA 3: Configuración & Apariencia

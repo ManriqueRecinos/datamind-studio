@@ -232,4 +232,80 @@ class TrainingController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Proxy para parsear SQL a Query Blueprint.
+     */
+    public function parseBlueprint(Request $request): JsonResponse
+    {
+        $sql = trim((string) $request->input('sql', ''));
+        $dialect = (string) $request->input('dialect', 'postgres');
+
+        if (empty($sql)) {
+            return response()->json(['success' => false, 'message' => 'La consulta SQL está vacía.'], 422);
+        }
+
+        $res = $this->fastApiClient->parseQueryBlueprint($sql, $dialect);
+        return response()->json($res, $res['success'] ? 200 : 422);
+    }
+
+    /**
+     * Proxy para compilar Query Blueprint a SQL.
+     */
+    public function compileBlueprint(Request $request): JsonResponse
+    {
+        $blueprint = $request->input('blueprint');
+        $dialect = (string) $request->input('dialect', 'postgres');
+
+        if (!is_array($blueprint)) {
+            return response()->json(['success' => false, 'message' => 'El blueprint debe ser un objeto JSON válido.'], 422);
+        }
+
+        $res = $this->fastApiClient->compileQueryBlueprint($blueprint, $dialect);
+        return response()->json($res, $res['success'] ? 200 : 422);
+    }
+
+    /**
+     * Proxy para validar Query Blueprint contra tablas vectorizadas.
+     */
+    public function validateBlueprint(Request $request): JsonResponse
+    {
+        $blueprint = $request->input('blueprint');
+        $connectionId = (string) $request->input('connection_id', '');
+
+        if (!is_array($blueprint) || empty($connectionId)) {
+            return response()->json(['success' => false, 'message' => 'Faltan parámetros requeridos (blueprint, connection_id).'], 422);
+        }
+
+        $res = $this->fastApiClient->validateQueryBlueprint($blueprint, $connectionId);
+        return response()->json($res, $res['success'] ? 200 : 422);
+    }
+
+    /**
+     * Proxy para ejecutar Dry-Run (LIMIT 20) de forma segura.
+     */
+    public function dryRunBlueprint(Request $request): JsonResponse
+    {
+        $sql = $request->input('sql');
+        $blueprint = $request->input('blueprint');
+        $connectionId = (string) $request->input('connection_id', '');
+        $dialect = (string) $request->input('dialect', 'postgres');
+
+        if (empty($connectionId)) {
+            return response()->json(['success' => false, 'message' => 'Se requiere el connection_id.'], 422);
+        }
+
+        if (empty($sql) && empty($blueprint)) {
+            return response()->json(['success' => false, 'message' => 'Debe suministrar una consulta SQL o un blueprint.'], 422);
+        }
+
+        $res = $this->fastApiClient->dryRunQueryBlueprint(
+            is_string($sql) ? $sql : null,
+            is_array($blueprint) ? $blueprint : null,
+            $connectionId,
+            $dialect
+        );
+
+        return response()->json($res, $res['success'] ? 200 : 400);
+    }
 }

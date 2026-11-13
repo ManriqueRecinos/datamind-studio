@@ -21,6 +21,9 @@
     const trainCategoryInput = document.getElementById('trainCategoryInput');
     const customRelationFields = document.getElementById('customRelationFields');
     const sqlExampleFieldBox = document.getElementById('sqlExampleFieldBox');
+    const compositeQueryBox = document.getElementById('compositeQueryBox');
+    const queryBuilderContainer = document.getElementById('queryBuilderContainer');
+    let queryBuilderInstance = null;
     const trainSourceTable = document.getElementById('trainSourceTable');
     const trainSourceCol = document.getElementById('trainSourceCol');
     const trainTargetTable = document.getElementById('trainTargetTable');
@@ -93,6 +96,7 @@
         if (trainTitleInput) trainTitleInput.value = '';
         if (trainContentInput) trainContentInput.value = '';
         resetRelationSelectors();
+        if (queryBuilderInstance) queryBuilderInstance.reset();
         if (trainSqlQueryInput) trainSqlQueryInput.value = '';
         selectTrainingCategory('custom_relation');
     }
@@ -142,6 +146,9 @@
         }
         if (sqlExampleFieldBox) {
             sqlExampleFieldBox.classList.toggle('hidden', cat !== 'sql_example');
+        }
+        if (compositeQueryBox) {
+            compositeQueryBox.classList.toggle('hidden', cat !== 'composite_query');
         }
     }
 
@@ -276,12 +283,47 @@
         }
 
         // Metadatos
+        let editInBuilderBtn = '';
+        if (meta.blueprint || meta.is_composite) {
+            editInBuilderBtn = `
+                <div class="mt-2 pt-2 border-t border-slate-200">
+                    <button type="button" id="btnLoadIntoBuilder" class="w-full px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-none cursor-pointer flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-diagram-project"></i>
+                        <span>Abrir y Editar en Constructor Compuesto</span>
+                    </button>
+                </div>
+            `;
+        }
+
         detailRuleMeta.innerHTML = `
             <div><strong>ID Documento:</strong> <span class="text-slate-700">${escapeHtml(rule.id)}</span></div>
             <div><strong>Categoría:</strong> <span class="text-slate-700">${escapeHtml(rule.category)}</span></div>
             <div><strong>Conexión ID:</strong> <span class="text-slate-700">${escapeHtml(meta.connection_id || 'Global')}</span></div>
             <div><strong>Registrado:</strong> <span class="text-slate-700">${rule.created_at ? new Date(rule.created_at).toLocaleString() : 'N/A'}</span></div>
+            ${editInBuilderBtn}
         `;
+
+        if (meta.blueprint || meta.is_composite) {
+            const btnLoad = detailRuleMeta.querySelector('#btnLoadIntoBuilder');
+            if (btnLoad) {
+                btnLoad.addEventListener('click', () => {
+                    closeRuleDetailModal();
+                    if (newRuleFormContainer) newRuleFormContainer.classList.remove('hidden');
+                    selectTrainingCategory('composite_query');
+                    if (trainTitleInput) trainTitleInput.value = rule.title || '';
+                    if (trainContentInput) trainContentInput.value = rule.content || '';
+
+                    if (queryBuilderInstance) {
+                        if (meta.blueprint) {
+                            queryBuilderInstance.loadBlueprintIntoVisual(meta.blueprint);
+                        } else if (sql) {
+                            queryBuilderInstance.parseSqlToVisual(sql);
+                        }
+                    }
+                    notify('info', 'Regla cargada en el constructor visual.', 'Constructor de Consultas');
+                });
+            }
+        }
 
         modalRuleDetail.classList.remove('hidden');
     }
@@ -294,6 +336,26 @@
     // Inicialización de Eventos DOM
     document.addEventListener('DOMContentLoaded', function () {
         initRelationSelectors();
+
+        // Inicializar QueryBuilder para consultas compuestas si está presente
+        if (queryBuilderContainer && window.QueryBuilder) {
+            queryBuilderInstance = QueryBuilder.init({
+                container: queryBuilderContainer,
+                getConnectionId: currentConnId,
+                notify: function (msg, type) {
+                    notify(type === 'error' ? 'error' : (type === 'success' ? 'success' : 'info'), msg, 'Constructor de Consultas');
+                },
+                onSqlChange: function (sql, bp) {
+                    // Si el usuario no ha escrito título ni explicación, sugerir automáticos
+                    if (trainCategoryInput && trainCategoryInput.value === 'composite_query') {
+                        if (trainTitleInput && !trainTitleInput.value.trim() && bp.primary.base.table) {
+                            trainTitleInput.value = `Consulta compuesta: ${bp.primary.base.table} con ${bp.primary.joins.length} uniones`;
+                        }
+                    }
+                }
+            });
+        }
+
         loadLearnedRules();
 
         if (activeConnectionSelect) {
@@ -358,6 +420,14 @@
                     if (trainContentInput) {
                         trainContentInput.value = 'Ejemplo verificado para consultar los roles y permisos de cada usuario en el sistema sin inventar columnas.';
                     }
+                } else if (cat === 'composite_query') {
+                    if (trainTitleInput) trainTitleInput.value = 'Consulta de Muestra Compuesta (Multi-Join)';
+                    if (trainContentInput) {
+                        trainContentInput.value = 'Consulta de consolidación estructurada generada mediante el constructor visual con validación sqlglot.';
+                    }
+                    if (queryBuilderInstance) {
+                        queryBuilderInstance.parseSqlToVisual('SELECT u.id, u.name, r.name AS rol FROM users AS u LEFT JOIN role_user AS ru ON u.id = ru.user_id INNER JOIN roles AS r ON ru.role_id = r.id WHERE u.status = 1 ORDER BY u.id DESC LIMIT 20;');
+                    }
                 }
             });
         }
@@ -384,10 +454,22 @@
                         notify('warning', 'Selecciona tabla origen, columna foránea, tabla maestra y campo legible.', 'Centro de Aprendizaje');
                         return;
                     }
+                } else if (cat === 'composite_query') {
+                    const compiledSql = queryBuilderInstance ? queryBuilderInstance.getCompiledSql() : '';
+                    if (!compiledSql || compiledSql.startsWith('--')) {
+                        notify('warning', 'Configura la tabla base y las uniones en el constructor antes de guardar.', 'Centro de Aprendizaje');
+                        return;
+                    }
                 }
 
+                const finalCategory = (cat === 'composite_query') ? 'sql_example' : cat;
+                const blueprintMeta = (cat === 'composite_query' && queryBuilderInstance) ? queryBuilderInstance.getBlueprint() : null;
+                const finalSql = (cat === 'composite_query' && queryBuilderInstance)
+                    ? queryBuilderInstance.getCompiledSql()
+                    : (trainSqlQueryInput ? trainSqlQueryInput.value.trim() : null);
+
                 const payload = {
-                    category: cat,
+                    category: finalCategory,
                     title: title,
                     content: content,
                     connection_id: connId || null,
@@ -396,7 +478,8 @@
                     target_table: trainTargetTable ? trainTargetTable.value.trim() : null,
                     target_column: relationSelectors ? relationSelectors.getTargetPk() : 'id',
                     label_column: trainLabelCol ? trainLabelCol.value.trim() : null,
-                    sql_query: trainSqlQueryInput ? trainSqlQueryInput.value.trim() : null,
+                    sql_query: finalSql,
+                    metadata: blueprintMeta ? { blueprint: blueprintMeta, is_composite: true } : {}
                 };
 
                 const origHtml = btnSaveTrainingRule.innerHTML;

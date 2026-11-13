@@ -787,4 +787,104 @@ class FastApiClient
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }
+
+    /**
+     * Parsea una sentencia SQL a un Query Blueprint mediante FastAPI/sqlglot.
+     */
+    public function parseQueryBlueprint(string $sql, string $dialect = 'postgres'): array
+    {
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(15)
+                ->post("{$this->baseUrl}/query-blueprint/parse", [
+                    'sql' => $sql,
+                    'dialect' => $dialect,
+                ]);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return ['success' => false, 'message' => $response->json('detail') ?? 'Error al analizar la consulta SQL.'];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Compila un Query Blueprint a código SQL con sqlglot.
+     */
+    public function compileQueryBlueprint(array $blueprint, string $dialect = 'postgres'): array
+    {
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(15)
+                ->post("{$this->baseUrl}/query-blueprint/compile", [
+                    'blueprint' => $blueprint,
+                    'dialect' => $dialect,
+                ]);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return ['success' => false, 'message' => $response->json('detail') ?? 'Error al compilar el blueprint SQL.'];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Valida semánticamente un Query Blueprint contra las tablas vectorizadas de la conexión.
+     */
+    public function validateQueryBlueprint(array $blueprint, string $connectionId): array
+    {
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(20)
+                ->post("{$this->baseUrl}/query-blueprint/validate", [
+                    'blueprint' => $blueprint,
+                    'connection_id' => $connectionId,
+                ]);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return ['success' => false, 'message' => $response->json('detail') ?? 'Error al validar el blueprint.'];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Ejecuta una prueba segura de la consulta (LIMIT 20) en la base de datos destino.
+     */
+    public function dryRunQueryBlueprint(?string $sql, ?array $blueprint, string $connectionId, string $dialect = 'postgres'): array
+    {
+        try {
+            $payload = [
+                'connection_id' => $connectionId,
+                'dialect' => $dialect,
+            ];
+            if ($sql !== null) {
+                $payload['sql'] = $sql;
+            }
+            if ($blueprint !== null) {
+                $payload['blueprint'] = $blueprint;
+            }
+
+            $response = Http::withToken($this->apiKey)
+                ->timeout(25)
+                ->post("{$this->baseUrl}/query-blueprint/dry-run", $payload);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return ['success' => false, 'message' => $response->json('detail') ?? 'Error en la ejecución de prueba.'];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
 }
