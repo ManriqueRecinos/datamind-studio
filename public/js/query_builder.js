@@ -453,24 +453,25 @@
         }
 
         async fetchTableColumns(tableName) {
-            if (!tableName) return [];
+            if (!tableName) return null;
             if (this.columnsCache.has(tableName)) {
                 return this.columnsCache.get(tableName);
             }
             const connId = this.getConnectionId();
-            if (!connId) return [];
+            if (!connId) return null;
 
             try {
                 const res = await fetch(`/training/vectorized-tables/columns?connection_id=${encodeURIComponent(connId)}&table=${encodeURIComponent(tableName)}`);
                 const json = await res.json();
-                if (json.success && json.data) {
-                    this.columnsCache.set(tableName, json.data);
-                    return json.data;
+                if (json.success) {
+                    const data = json.data || json;
+                    this.columnsCache.set(tableName, data);
+                    return data;
                 }
             } catch (e) {
                 console.error('Error fetching columns:', e);
             }
-            return [];
+            return null;
         }
 
         async onBaseTableSelected(tableName) {
