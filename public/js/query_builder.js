@@ -4,8 +4,11 @@
  * Características:
  *  - Estado reactivo en memoria: tabla base, lista de JOINs (INNER, LEFT, RIGHT, FULL, CROSS),
  *    proyecciones SELECT (columnas, alias, agregaciones), filtros WHERE, GROUP BY, ORDER BY, LIMIT y UNIONs.
+ *  - Selectores dinámicos en cascada de Alias y Columnas:
+ *      * En condiciones ON: Selecciona alias izquierdo -> carga columnas de su tabla; selecciona alias derecho -> carga columnas de su tabla.
+ *      * En condiciones WHERE: Selecciona alias -> carga columnas de esa tabla; operador dinámico y soporte de valores o columnas.
+ *      * En proyecciones SELECT: Selecciona alias -> carga columnas de esa tabla con soporte de modo libre.
  *  - Integración nativa con TablePicker para paginar tablas vectorizadas de 10 en 10.
- *  - Selectores dinámicos de columnas para ON, WHERE, SELECT y ORDER BY cargados vía /training/vectorized-tables/columns.
  *  - Sincronización bidireccional:
  *      * Modo Visual -> Compilación SQL en vivo con debounce (300ms) llamando a /training/query-blueprint/compile.
  *      * Modo Script SQL -> Parseo de SQL complejo a Blueprint con /training/query-blueprint/parse.
@@ -315,6 +318,7 @@
             // Alias de Tabla Base
             root.querySelector('.qb-base-alias').addEventListener('input', (e) => {
                 this.state.base.alias = e.target.value.trim() || 't1';
+                this.refreshAllAliasSelectors();
                 this.scheduleCompile();
             });
 
@@ -375,6 +379,39 @@
             });
         }
 
+        /**
+         * Retorna la lista de todas las fuentes disponibles en la consulta primaria:
+         * [{ alias: 't1', table: 'users', label: 't1 (users)' }, { alias: 'ru', table: 'role_user', ... }]
+         */
+        getAvailableSources() {
+            const sources = [];
+            if (this.state.base.table) {
+                sources.push({
+                    alias: this.state.base.alias || 't1',
+                    table: this.state.base.table,
+                    label: `${this.state.base.alias || 't1'} (${this.state.base.table})`
+                });
+            }
+            this.state.joins.forEach((j, idx) => {
+                if (j.table) {
+                    const a = j.alias || `t${idx + 2}`;
+                    sources.push({
+                        alias: a,
+                        table: j.table,
+                        label: `${a} (${j.table})`
+                    });
+                }
+            });
+            return sources;
+        }
+
+        getTableForAlias(alias) {
+            if (!alias) return '';
+            if (alias === this.state.base.alias) return this.state.base.table;
+            const found = this.state.joins.find(j => j.alias === alias);
+            return found ? found.table : '';
+        }
+
         async fetchTableColumns(tableName) {
             if (!tableName) return [];
             if (this.columnsCache.has(tableName)) {
@@ -397,9 +434,52 @@
         }
 
         async onBaseTableSelected(tableName) {
-            const cols = await this.fetchTableColumns(tableName);
+            await this.fetchTableColumns(tableName);
+            this.refreshAllAliasSelectors();
             this.updateOrderColumnsDropdown();
             this.scheduleCompile();
+        }
+
+        /**
+         * Actualiza todos los selectores de alias en las condiciones ON, WHERE y SELECT.
+         */
+        refreshAllAliasSelectors() {
+            const root = this.container.querySelector('.qb-root');
+            const sources = this.getAvailableSources();
+
+            // 1. En cada fila de JOIN (ON izquierdo y derecho)
+            root.querySelectorAll('.qb-join-row').forEach(row => {
+                const leftAliasSel = row.querySelector('.qb-on-left-alias');
+                const rightAliasSel = row.querySelector('.qb-on-right-alias');
+                if (leftAliasSel) this._fillAliasOptions(leftAliasSel, sources);
+                if (rightAliasSel) this._fillAliasOptions(rightAliasSel, sources);
+            });
+
+            // 2. En cada fila de WHERE
+            root.querySelectorAll('.qb-where-row').forEach(row => {
+                const aliasSel = row.querySelector('.qb-where-alias');
+                if (aliasSel) this._fillAliasOptions(aliasSel, sources);
+            });
+
+            // 3. En cada fila de SELECT
+            root.querySelectorAll('.qb-select-row').forEach(row => {
+                const aliasSel = row.querySelector('.qb-select-alias-src');
+                if (aliasSel) this._fillAliasOptions(aliasSel, sources);
+            });
+
+            this.updateOrderColumnsDropdown();
+        }
+
+        _fillAliasOptions(selectEl, sources) {
+            const currentVal = selectEl.value;
+            selectEl.innerHTML = '<option value="">-- Tabla/Alias --</option>';
+            sources.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.alias;
+                opt.textContent = s.label;
+                if (opt.value === currentVal) opt.selected = true;
+                selectEl.appendChild(opt);
+            });
         }
 
         updateOrderColumnsDropdown() {
@@ -440,6 +520,24 @@
             };
             if (!joinData) this.state.joins.push(joinObj);
 
+            // Desglosar condición ON existente: "t1.id" -> alias "t1", col "id"
+            let leftAlias = this.state.base.alias || 't1';
+            let leftCol = '';
+            let rightAlias = joinObj.alias || defaultAlias;
+            let rightCol = '';
+            let onOp = '=';
+
+            if (joinObj.on && joinObj.on[0]) {
+                onOp = joinObj.on[0].op || '=';
+                const lParts = (joinObj.on[0].left || '').split('.');
+                if (lParts.length === 2) { leftAlias = lParts[0]; leftCol = lParts[1]; }
+                else { leftCol = joinObj.on[0].left || ''; }
+
+                const rParts = (joinObj.on[0].right || '').split('.');
+                if (rParts.length === 2) { rightAlias = rParts[0]; rightCol = rParts[1]; }
+                else { rightCol = joinObj.on[0].right || ''; }
+            }
+
             const row = document.createElement('div');
             row.className = 'qb-join-row p-2.5 bg-white border border-slate-200 rounded-none space-y-2';
             row.innerHTML = `
@@ -461,22 +559,45 @@
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
-                <div class="qb-join-on-container text-[11px] space-y-1">
-                    <div class="flex items-center gap-1.5">
-                        <span class="font-bold text-slate-600 uppercase text-[10px]">Condición ON:</span>
-                        <input type="text" class="qb-on-left flex-1 px-2 py-1 border border-slate-200 font-mono rounded-none" placeholder="t1.id" value="${esc(joinObj.on[0]?.left || '')}">
-                        <select class="qb-on-op px-1.5 py-1 border border-slate-200 bg-slate-50 font-mono rounded-none">
-                            <option value="=">=</option>
-                            <option value="!=">!=</option>
+
+                <!-- Selector guiado en Cascada de la condición ON -->
+                <div class="qb-join-on-container text-[11px] p-2 bg-slate-50/70 border border-slate-100 space-y-1">
+                    <span class="font-bold text-slate-600 uppercase text-[10px] block mb-1">
+                        <i class="fa-solid fa-link text-indigo-500 mr-1"></i> Condición ON:
+                    </span>
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <!-- Lado Izquierdo: Alias -> Columna -->
+                        <div class="flex items-center gap-1 flex-1 min-w-[200px]">
+                            <select class="qb-on-left-alias w-1/2 px-1.5 py-1 border border-slate-200 bg-white font-mono text-xs rounded-none cursor-pointer">
+                                <option value="">-- Alias --</option>
+                            </select>
+                            <select class="qb-on-left-col w-1/2 px-1.5 py-1 border border-slate-200 bg-white font-mono text-xs rounded-none cursor-pointer" disabled>
+                                <option value="">-- Columna --</option>
+                            </select>
+                        </div>
+
+                        <!-- Operador -->
+                        <select class="qb-on-op px-2 py-1 border border-slate-200 bg-white font-mono font-bold text-xs rounded-none">
+                            <option value="=" ${onOp === '=' ? 'selected' : ''}>=</option>
+                            <option value="!=" ${onOp === '!=' ? 'selected' : ''}>!=</option>
                         </select>
-                        <input type="text" class="qb-on-right flex-1 px-2 py-1 border border-slate-200 font-mono rounded-none" placeholder="${esc(joinObj.alias)}.user_id" value="${esc(joinObj.on[0]?.right || '')}">
+
+                        <!-- Lado Derecho: Alias -> Columna -->
+                        <div class="flex items-center gap-1 flex-1 min-w-[200px]">
+                            <select class="qb-on-right-alias w-1/2 px-1.5 py-1 border border-slate-200 bg-white font-mono text-xs rounded-none cursor-pointer">
+                                <option value="">-- Alias --</option>
+                            </select>
+                            <select class="qb-on-right-col w-1/2 px-1.5 py-1 border border-slate-200 bg-white font-mono text-xs rounded-none cursor-pointer" disabled>
+                                <option value="">-- Columna --</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             `;
 
             container.appendChild(row);
 
-            // Inicializar Picker
+            // Inicializar Picker de Tabla
             const pickerEl = row.querySelector('.qb-join-table-picker');
             if (window.TablePicker) {
                 TablePicker.init(pickerEl, {
@@ -484,12 +605,83 @@
                     onSelect: async (tableName) => {
                         joinObj.table = tableName;
                         await this.fetchTableColumns(tableName);
+                        this.refreshAllAliasSelectors();
                         this.autoSuggestJoinOn(joinObj, row);
-                        this.updateOrderColumnsDropdown();
                         this.scheduleCompile();
                     }
                 });
             }
+
+            const leftAliasSel = row.querySelector('.qb-on-left-alias');
+            const leftColSel = row.querySelector('.qb-on-left-col');
+            const rightAliasSel = row.querySelector('.qb-on-right-alias');
+            const rightColSel = row.querySelector('.qb-on-right-col');
+            const opSel = row.querySelector('.qb-on-op');
+
+            // Llenar selects de alias
+            const sources = this.getAvailableSources();
+            this._fillAliasOptions(leftAliasSel, sources);
+            this._fillAliasOptions(rightAliasSel, sources);
+
+            if (leftAlias) leftAliasSel.value = leftAlias;
+            if (rightAlias) rightAliasSel.value = rightAlias;
+
+            // Manejadores en cascada de Columnas
+            const updateColsForAlias = async (aliasSel, colSel, targetColVal) => {
+                const a = aliasSel.value;
+                if (!a) {
+                    colSel.innerHTML = '<option value="">-- Elige tabla --</option>';
+                    colSel.disabled = true;
+                    return;
+                }
+                const t = this.getTableForAlias(a);
+                const colsData = await this.fetchTableColumns(t);
+                colSel.innerHTML = '<option value="">-- Seleccionar Columna --</option>';
+                if (colsData && colsData.columns) {
+                    colsData.columns.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.name;
+                        opt.textContent = `${c.name} (${c.type || 'varchar'})${c.is_fk ? ' [FK]' : ''}`;
+                        if (c.name === targetColVal) opt.selected = true;
+                        colSel.appendChild(opt);
+                    });
+                    colSel.disabled = false;
+                } else {
+                    colSel.disabled = true;
+                }
+            };
+
+            leftAliasSel.addEventListener('change', () => {
+                updateColsForAlias(leftAliasSel, leftColSel, '');
+                syncOnObj();
+            });
+
+            rightAliasSel.addEventListener('change', () => {
+                updateColsForAlias(rightAliasSel, rightColSel, '');
+                syncOnObj();
+            });
+
+            const syncOnObj = () => {
+                const lA = leftAliasSel.value;
+                const lC = leftColSel.value;
+                const rA = rightAliasSel.value;
+                const rC = rightColSel.value;
+                const op = opSel.value;
+
+                const leftStr = (lA && lC) ? `${lA}.${lC}` : (lC || '');
+                const rightStr = (rA && rC) ? `${rA}.${rC}` : (rC || '');
+
+                joinObj.on = [{ left: leftStr, op: op, right: rightStr }];
+                this.scheduleCompile();
+            };
+
+            leftColSel.addEventListener('change', syncOnObj);
+            rightColSel.addEventListener('change', syncOnObj);
+            opSel.addEventListener('change', syncOnObj);
+
+            // Si vienen valores iniciales, poblar
+            if (leftAlias) updateColsForAlias(leftAliasSel, leftColSel, leftCol);
+            if (rightAlias) updateColsForAlias(rightAliasSel, rightColSel, rightCol);
 
             row.querySelector('.qb-join-type').addEventListener('change', (e) => {
                 joinObj.type = e.target.value;
@@ -498,18 +690,7 @@
 
             row.querySelector('.qb-join-alias').addEventListener('input', (e) => {
                 joinObj.alias = e.target.value.trim() || defaultAlias;
-                this.scheduleCompile();
-            });
-
-            row.querySelector('.qb-on-left').addEventListener('input', (e) => {
-                if (!joinObj.on[0]) joinObj.on.push({ left: '', op: '=', right: '' });
-                joinObj.on[0].left = e.target.value.trim();
-                this.scheduleCompile();
-            });
-
-            row.querySelector('.qb-on-right').addEventListener('input', (e) => {
-                if (!joinObj.on[0]) joinObj.on.push({ left: '', op: '=', right: '' });
-                joinObj.on[0].right = e.target.value.trim();
+                this.refreshAllAliasSelectors();
                 this.scheduleCompile();
             });
 
@@ -518,34 +699,34 @@
                 if (idx !== -1) this.state.joins.splice(idx, 1);
                 row.remove();
                 if (this.state.joins.length === 0 && emptyNotice) emptyNotice.classList.remove('hidden');
-                this.updateOrderColumnsDropdown();
+                this.refreshAllAliasSelectors();
                 this.scheduleCompile();
             });
 
+            this.refreshAllAliasSelectors();
             this.scheduleCompile();
         }
 
-        autoSuggestJoinOn(joinObj, rowEl) {
+        async autoSuggestJoinOn(joinObj, rowEl) {
             const baseT = this.state.base.table;
             const targetT = joinObj.table;
             if (!baseT || !targetT) return;
 
-            const baseCols = this.columnsCache.get(baseT);
-            const targetCols = this.columnsCache.get(targetT);
+            const baseCols = await this.fetchTableColumns(baseT);
+            const targetCols = await this.fetchTableColumns(targetT);
             if (!baseCols || !targetCols) return;
 
             const baseAlias = this.state.base.alias;
             const targetAlias = joinObj.alias;
 
-            // 1. Buscar FK en baseCols hacia targetT
             let matched = false;
+            let lAlias = baseAlias, lCol = '', rAlias = targetAlias, rCol = '';
+
+            // 1. Buscar FK en baseCols hacia targetT
             for (const c of (baseCols.columns || [])) {
                 if (c.is_fk && c.references && c.references.table.toLowerCase() === targetT.toLowerCase()) {
-                    const leftStr = `${baseAlias}.${c.name}`;
-                    const rightStr = `${targetAlias}.${c.references.column || 'id'}`;
-                    rowEl.querySelector('.qb-on-left').value = leftStr;
-                    rowEl.querySelector('.qb-on-right').value = rightStr;
-                    joinObj.on = [{ left: leftStr, op: '=', right: rightStr }];
+                    lCol = c.name;
+                    rCol = c.references.column || 'id';
                     matched = true;
                     break;
                 }
@@ -555,11 +736,8 @@
             if (!matched) {
                 for (const c of (targetCols.columns || [])) {
                     if (c.is_fk && c.references && c.references.table.toLowerCase() === baseT.toLowerCase()) {
-                        const leftStr = `${baseAlias}.${c.references.column || 'id'}`;
-                        const rightStr = `${targetAlias}.${c.name}`;
-                        rowEl.querySelector('.qb-on-left').value = leftStr;
-                        rowEl.querySelector('.qb-on-right').value = rightStr;
-                        joinObj.on = [{ left: leftStr, op: '=', right: rightStr }];
+                        lCol = c.references.column || 'id';
+                        rCol = c.name;
                         matched = true;
                         break;
                     }
@@ -572,12 +750,38 @@
                 const candFk = `${singularBase}_id`;
                 const found = (targetCols.columns || []).some(c => c.name.toLowerCase() === candFk.toLowerCase());
                 if (found) {
-                    const leftStr = `${baseAlias}.id`;
-                    const rightStr = `${targetAlias}.${candFk}`;
-                    rowEl.querySelector('.qb-on-left').value = leftStr;
-                    rowEl.querySelector('.qb-on-right').value = rightStr;
-                    joinObj.on = [{ left: leftStr, op: '=', right: rightStr }];
+                    lCol = 'id';
+                    rCol = candFk;
+                    matched = true;
                 }
+            }
+
+            if (matched) {
+                const leftAliasSel = rowEl.querySelector('.qb-on-left-alias');
+                const leftColSel = rowEl.querySelector('.qb-on-left-col');
+                const rightAliasSel = rowEl.querySelector('.qb-on-right-alias');
+                const rightColSel = rowEl.querySelector('.qb-on-right-col');
+
+                leftAliasSel.value = lAlias;
+                rightAliasSel.value = rAlias;
+
+                // Cargar selects
+                const fillAndSet = (colSel, colsData, val) => {
+                    colSel.innerHTML = '<option value="">-- Seleccionar Columna --</option>';
+                    (colsData.columns || []).forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.name;
+                        opt.textContent = `${c.name} (${c.type || 'varchar'})${c.is_fk ? ' [FK]' : ''}`;
+                        if (c.name === val) opt.selected = true;
+                        colSel.appendChild(opt);
+                    });
+                    colSel.disabled = false;
+                };
+
+                fillAndSet(leftColSel, baseCols, lCol);
+                fillAndSet(rightColSel, targetCols, rCol);
+
+                joinObj.on = [{ left: `${lAlias}.${lCol}`, op: '=', right: `${rAlias}.${rCol}` }];
             }
         }
 
@@ -590,10 +794,21 @@
             const item = selectData || { expr: '', alias: '', agg: null };
             if (!selectData) this.state.select.push(item);
 
+            // Desglosar alias y columna si viene en formato "alias.col"
+            let initialAlias = '';
+            let initialCol = item.expr;
+            if (item.expr && item.expr.includes('.')) {
+                const parts = item.expr.split('.');
+                initialAlias = parts[0];
+                initialCol = parts[1];
+            } else if (this.state.base.alias) {
+                initialAlias = this.state.base.alias;
+            }
+
             const row = document.createElement('div');
-            row.className = 'qb-select-row flex items-center gap-1.5 p-1.5 bg-white border border-slate-200 rounded-none text-xs';
+            row.className = 'qb-select-row flex flex-wrap items-center gap-1.5 p-1.5 bg-white border border-slate-200 rounded-none text-xs';
             row.innerHTML = `
-                <select class="qb-select-agg px-1.5 py-1 border border-slate-200 bg-slate-50 font-bold text-emerald-700 text-xs rounded-none">
+                <select class="qb-select-agg px-1.5 py-1 border border-slate-200 bg-slate-50 font-bold text-emerald-700 text-xs rounded-none cursor-pointer">
                     <option value="" ${!item.agg ? 'selected' : ''}>(Sin agregación)</option>
                     <option value="COUNT" ${item.agg === 'COUNT' ? 'selected' : ''}>COUNT</option>
                     <option value="SUM" ${item.agg === 'SUM' ? 'selected' : ''}>SUM</option>
@@ -601,9 +816,19 @@
                     <option value="MIN" ${item.agg === 'MIN' ? 'selected' : ''}>MIN</option>
                     <option value="MAX" ${item.agg === 'MAX' ? 'selected' : ''}>MAX</option>
                 </select>
-                <input type="text" class="qb-select-expr flex-1 px-2 py-1 border border-slate-200 font-mono text-xs rounded-none" placeholder="Columna o expr (ej. t1.name)" value="${esc(item.expr)}">
+
+                <!-- Selector de Tabla/Alias -->
+                <select class="qb-select-alias-src px-1.5 py-1 border border-slate-200 bg-white font-mono text-xs rounded-none cursor-pointer min-w-[120px]">
+                    <option value="">-- Tabla/Alias --</option>
+                </select>
+
+                <!-- Selector de Columna -->
+                <select class="qb-select-col-dropdown px-1.5 py-1 border border-slate-200 bg-white font-mono text-xs rounded-none cursor-pointer flex-1 min-w-[140px]" disabled>
+                    <option value="">-- Columna --</option>
+                </select>
+
                 <span class="text-slate-400 font-mono text-[10px]">AS</span>
-                <input type="text" class="qb-select-alias w-32 px-2 py-1 border border-slate-200 font-mono text-xs rounded-none" placeholder="Alias (opcional)" value="${esc(item.alias || '')}">
+                <input type="text" class="qb-select-alias w-28 px-2 py-1 border border-slate-200 font-mono text-xs rounded-none" placeholder="Alias (opcional)" value="${esc(item.alias || '')}">
                 <button type="button" class="qb-btn-remove-select text-slate-400 hover:text-red-600 p-1 cursor-pointer">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
@@ -611,20 +836,59 @@
 
             container.appendChild(row);
 
-            row.querySelector('.qb-select-agg').addEventListener('change', (e) => {
+            const aliasSel = row.querySelector('.qb-select-alias-src');
+            const colSel = row.querySelector('.qb-select-col-dropdown');
+            const aggSel = row.querySelector('.qb-select-agg');
+            const asInput = row.querySelector('.qb-select-alias');
+
+            this._fillAliasOptions(aliasSel, this.getAvailableSources());
+            if (initialAlias) aliasSel.value = initialAlias;
+
+            const updateCols = async (targetVal) => {
+                const a = aliasSel.value;
+                if (!a) {
+                    colSel.innerHTML = '<option value="">-- Elige tabla --</option>';
+                    colSel.disabled = true;
+                    return;
+                }
+                const t = this.getTableForAlias(a);
+                const colsData = await this.fetchTableColumns(t);
+                colSel.innerHTML = '<option value="*">* (Todas)</option>';
+                if (colsData && colsData.columns) {
+                    colsData.columns.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.name;
+                        opt.textContent = `${c.name} (${c.type || 'varchar'})`;
+                        if (c.name === targetVal) opt.selected = true;
+                        colSel.appendChild(opt);
+                    });
+                    colSel.disabled = false;
+                }
+            };
+
+            aliasSel.addEventListener('change', () => {
+                updateCols('');
+                syncItem();
+            });
+
+            const syncItem = () => {
+                const a = aliasSel.value;
+                const c = colSel.value;
+                item.expr = (a && c && c !== '*') ? `${a}.${c}` : (c === '*' && a ? `${a}.*` : (c || ''));
+                this.scheduleCompile();
+            };
+
+            colSel.addEventListener('change', syncItem);
+            aggSel.addEventListener('change', (e) => {
                 item.agg = e.target.value || null;
                 this.scheduleCompile();
             });
-
-            row.querySelector('.qb-select-expr').addEventListener('input', (e) => {
-                item.expr = e.target.value.trim();
-                this.scheduleCompile();
-            });
-
-            row.querySelector('.qb-select-alias').addEventListener('input', (e) => {
+            asInput.addEventListener('input', (e) => {
                 item.alias = e.target.value.trim() || null;
                 this.scheduleCompile();
             });
+
+            if (initialAlias) updateCols(initialCol);
 
             row.querySelector('.qb-btn-remove-select').addEventListener('click', () => {
                 const idx = this.state.select.indexOf(item);
@@ -646,15 +910,37 @@
             const item = whereData || { left: '', op: '=', value: '', logic: 'AND' };
             if (!whereData) this.state.where.push(item);
 
+            // Desglosar alias y columna izquierda: "u.status" -> alias "u", col "status"
+            let initialAlias = '';
+            let initialCol = item.left;
+            if (item.left && item.left.includes('.')) {
+                const parts = item.left.split('.');
+                initialAlias = parts[0];
+                initialCol = parts[1];
+            } else if (this.state.base.alias) {
+                initialAlias = this.state.base.alias;
+            }
+
             const row = document.createElement('div');
-            row.className = 'qb-where-row flex items-center gap-1 p-1 bg-white border border-slate-200 rounded-none text-xs';
+            row.className = 'qb-where-row flex flex-wrap items-center gap-1 p-1.5 bg-white border border-slate-200 rounded-none text-xs';
             row.innerHTML = `
-                <select class="qb-where-logic px-1 py-0.5 border border-slate-200 bg-slate-50 font-bold text-[10px] rounded-none">
+                <select class="qb-where-logic px-1 py-1 border border-slate-200 bg-slate-50 font-bold text-[10px] rounded-none">
                     <option value="AND" ${item.logic === 'AND' ? 'selected' : ''}>AND</option>
                     <option value="OR" ${item.logic === 'OR' ? 'selected' : ''}>OR</option>
                 </select>
-                <input type="text" class="qb-where-left flex-1 px-1.5 py-0.5 border border-slate-200 font-mono text-[11px] rounded-none" placeholder="Campo" value="${esc(item.left)}">
-                <select class="qb-where-op px-1 py-0.5 border border-slate-200 bg-slate-50 font-mono text-[11px] rounded-none">
+
+                <!-- Selector de Tabla/Alias para el campo -->
+                <select class="qb-where-alias px-1.5 py-1 border border-slate-200 bg-white font-mono text-xs rounded-none cursor-pointer min-w-[110px]">
+                    <option value="">-- Tabla/Alias --</option>
+                </select>
+
+                <!-- Selector de Columna de esa tabla -->
+                <select class="qb-where-col px-1.5 py-1 border border-slate-200 bg-white font-mono text-xs rounded-none cursor-pointer min-w-[120px]" disabled>
+                    <option value="">-- Columna --</option>
+                </select>
+
+                <!-- Operador -->
+                <select class="qb-where-op px-1 py-1 border border-slate-200 bg-slate-50 font-mono text-[11px] rounded-none">
                     <option value="=" ${item.op === '=' ? 'selected' : ''}>=</option>
                     <option value="!=" ${item.op === '!=' ? 'selected' : ''}>!=</option>
                     <option value=">" ${item.op === '>' ? 'selected' : ''}>&gt;</option>
@@ -665,33 +951,79 @@
                     <option value="IS NULL" ${item.op === 'IS NULL' ? 'selected' : ''}>IS NULL</option>
                     <option value="IS NOT NULL" ${item.op === 'IS NOT NULL' ? 'selected' : ''}>IS NOT NULL</option>
                 </select>
-                <input type="text" class="qb-where-value flex-1 px-1.5 py-0.5 border border-slate-200 font-mono text-[11px] rounded-none" placeholder="Valor" value="${esc(item.value)}">
-                <button type="button" class="qb-btn-remove-where text-slate-400 hover:text-red-600 p-0.5 cursor-pointer">
+
+                <!-- Valor o expresión evaluada -->
+                <input type="text" class="qb-where-value flex-1 px-1.5 py-1 border border-slate-200 font-mono text-xs rounded-none min-w-[100px]" placeholder="Valor o 1" value="${esc(item.value)}">
+
+                <button type="button" class="qb-btn-remove-where text-slate-400 hover:text-red-600 p-1 cursor-pointer">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             `;
 
             container.appendChild(row);
 
-            row.querySelector('.qb-where-logic').addEventListener('change', (e) => {
-                item.logic = e.target.value;
-                this.scheduleCompile();
+            const logicSel = row.querySelector('.qb-where-logic');
+            const aliasSel = row.querySelector('.qb-where-alias');
+            const colSel = row.querySelector('.qb-where-col');
+            const opSel = row.querySelector('.qb-where-op');
+            const valInput = row.querySelector('.qb-where-value');
+
+            this._fillAliasOptions(aliasSel, this.getAvailableSources());
+            if (initialAlias) aliasSel.value = initialAlias;
+
+            const updateWhereCols = async (targetVal) => {
+                const a = aliasSel.value;
+                if (!a) {
+                    colSel.innerHTML = '<option value="">-- Elige tabla --</option>';
+                    colSel.disabled = true;
+                    return;
+                }
+                const t = this.getTableForAlias(a);
+                const colsData = await this.fetchTableColumns(t);
+                colSel.innerHTML = '<option value="">-- Seleccionar Columna --</option>';
+                if (colsData && colsData.columns) {
+                    colsData.columns.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.name;
+                        opt.textContent = `${c.name} (${c.type || 'varchar'})${c.is_fk ? ' [FK]' : ''}`;
+                        if (c.name === targetVal) opt.selected = true;
+                        colSel.appendChild(opt);
+                    });
+                    colSel.disabled = false;
+                }
+            };
+
+            aliasSel.addEventListener('change', () => {
+                updateWhereCols('');
+                syncWhere();
             });
 
-            row.querySelector('.qb-where-left').addEventListener('input', (e) => {
-                item.left = e.target.value.trim();
-                this.scheduleCompile();
-            });
+            const syncWhere = () => {
+                const a = aliasSel.value;
+                const c = colSel.value;
+                item.left = (a && c) ? `${a}.${c}` : (c || '');
+                item.op = opSel.value;
+                item.value = valInput.value.trim();
+                item.logic = logicSel.value;
 
-            row.querySelector('.qb-where-op').addEventListener('change', (e) => {
-                item.op = e.target.value;
-                this.scheduleCompile();
-            });
+                // Si es IS NULL o IS NOT NULL, deshabilitar input de valor
+                if (item.op === 'IS NULL' || item.op === 'IS NOT NULL') {
+                    valInput.disabled = true;
+                    valInput.classList.add('bg-slate-100', 'text-slate-400');
+                } else {
+                    valInput.disabled = false;
+                    valInput.classList.remove('bg-slate-100', 'text-slate-400');
+                }
 
-            row.querySelector('.qb-where-value').addEventListener('input', (e) => {
-                item.value = e.target.value.trim();
                 this.scheduleCompile();
-            });
+            };
+
+            colSel.addEventListener('change', syncWhere);
+            opSel.addEventListener('change', syncWhere);
+            valInput.addEventListener('input', syncWhere);
+            logicSel.addEventListener('change', syncWhere);
+
+            if (initialAlias) updateWhereCols(initialCol);
 
             row.querySelector('.qb-btn-remove-where').addEventListener('click', () => {
                 const idx = this.state.where.indexOf(item);
@@ -890,7 +1222,7 @@
                 }
 
                 const bp = json.data.blueprint;
-                this.loadBlueprintIntoVisual(bp);
+                await this.loadBlueprintIntoVisual(bp);
                 this.notify('Consulta analizada y sincronizada con el constructor visual.', 'success');
 
                 // Cambiar a pestaña visual
@@ -901,7 +1233,7 @@
             }
         }
 
-        loadBlueprintIntoVisual(bp) {
+        async loadBlueprintIntoVisual(bp) {
             const root = this.container.querySelector('.qb-root');
             this.reset(false);
 
@@ -912,6 +1244,16 @@
                     this.baseTablePicker.setValue(this.state.base.table);
                 }
                 root.querySelector('.qb-base-alias').value = this.state.base.alias || 't1';
+                if (this.state.base.table) {
+                    await this.fetchTableColumns(this.state.base.table);
+                }
+            }
+
+            // Precargar columnas de todas las tablas de JOIN
+            if (bp.primary && bp.primary.joins) {
+                for (const j of bp.primary.joins) {
+                    if (j.table) await this.fetchTableColumns(j.table);
+                }
             }
 
             // 2. JOINs
@@ -949,6 +1291,7 @@
             this.state.raw_blocks = bp.raw_blocks || [];
             this.renderRawBlocks();
 
+            this.refreshAllAliasSelectors();
             this.scheduleCompile();
         }
 
