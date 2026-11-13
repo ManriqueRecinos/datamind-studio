@@ -109,17 +109,18 @@
 
                         <!-- 2. Lista de Tablas Unificadas (JOINs) -->
                         <div class="p-3 bg-slate-50 border border-slate-200 space-y-2.5">
-                            <div class="flex items-center justify-between">
+                            <div class="flex items-center justify-between pb-1.5 border-b border-slate-200">
                                 <span class="font-bold text-slate-800 uppercase text-[11px] flex items-center gap-1.5">
-                                    <span class="w-4 h-4 bg-indigo-600 text-white text-[10px] flex items-center justify-center font-bold">2</span>
+                                    <span class="w-4 h-4 bg-datamind-primary text-white text-[10px] flex items-center justify-center font-bold">2</span>
                                     Tablas Unificadas (JOINs)
                                 </span>
-                                <button type="button" class="qb-btn-add-join px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-none cursor-pointer">
-                                    <i class="fa-solid fa-plus mr-1"></i> Agregar Unión
+                                <button type="button" class="qb-btn-add-join px-3 py-1 bg-datamind-primary hover:opacity-90 text-white text-xs font-bold rounded-none cursor-pointer shadow-xs flex items-center gap-1">
+                                    <i class="fa-solid fa-plus text-[10px]"></i>
+                                    <span>Agregar Unión</span>
                                 </button>
                             </div>
                             <div class="qb-joins-container space-y-2">
-                                <div class="qb-joins-empty text-slate-400 text-xs italic py-2 text-center border border-dashed border-slate-200 bg-white">
+                                <div class="qb-joins-empty text-slate-500 text-xs italic py-2 text-center border border-dashed border-slate-300 bg-white">
                                     No hay uniones añadidas. Haz clic en "Agregar Unión" para vincular otra tabla (INNER, LEFT, RIGHT, FULL o CROSS).
                                 </div>
                             </div>
@@ -127,18 +128,19 @@
 
                         <!-- 3. Columnas Proyectadas (SELECT) -->
                         <div class="p-3 bg-slate-50 border border-slate-200 space-y-2.5">
-                            <div class="flex items-center justify-between">
+                            <div class="flex items-center justify-between pb-1.5 border-b border-slate-200">
                                 <span class="font-bold text-slate-800 uppercase text-[11px] flex items-center gap-1.5">
                                     <span class="w-4 h-4 bg-emerald-600 text-white text-[10px] flex items-center justify-center font-bold">3</span>
                                     Columnas Proyectadas (SELECT)
                                 </span>
-                                <button type="button" class="qb-btn-add-select px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-none cursor-pointer">
-                                    <i class="fa-solid fa-plus mr-1"></i> Agregar Columna
+                                <button type="button" class="qb-btn-add-select px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-none cursor-pointer shadow-xs flex items-center gap-1">
+                                    <i class="fa-solid fa-plus text-[10px]"></i>
+                                    <span>Agregar Columna</span>
                                 </button>
                             </div>
                             <div class="qb-selects-container space-y-1.5">
-                                <div class="qb-selects-empty text-slate-400 text-xs italic py-2 text-center border border-dashed border-slate-200 bg-white">
-                                    Proyectando <code class="font-mono bg-slate-100 px-1">*</code> por defecto. Agrega columnas específicas si deseas limitar los campos o aplicar agregaciones (COUNT, SUM, AVG, etc.).
+                                <div class="qb-selects-empty text-slate-500 text-xs italic py-2 text-center border border-dashed border-slate-300 bg-white">
+                                    Proyectando <code class="font-mono bg-slate-100 px-1 font-bold text-slate-700">*</code> por defecto. Agrega columnas específicas si deseas limitar los campos o aplicar agregaciones (COUNT, SUM, AVG, etc.).
                                 </div>
                             </div>
                         </div>
@@ -147,16 +149,17 @@
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
                             <!-- Filtros WHERE -->
                             <div class="p-3 bg-slate-50 border border-slate-200 space-y-2">
-                                <div class="flex items-center justify-between">
+                                <div class="flex items-center justify-between pb-1 border-b border-slate-200">
                                     <span class="font-bold text-slate-800 uppercase text-[11px] flex items-center gap-1.5">
                                         <i class="fa-solid fa-filter text-amber-600"></i> Filtros (WHERE)
                                     </span>
-                                    <button type="button" class="qb-btn-add-where px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold rounded-none cursor-pointer">
-                                        <i class="fa-solid fa-plus mr-0.5"></i> Filtro
+                                    <button type="button" class="qb-btn-add-where px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold rounded-none cursor-pointer shadow-xs flex items-center gap-1">
+                                        <i class="fa-solid fa-plus text-[9px]"></i>
+                                        <span>Filtro</span>
                                     </button>
                                 </div>
                                 <div class="qb-wheres-container space-y-1.5">
-                                    <div class="qb-wheres-empty text-slate-400 text-[11px] italic py-1.5 text-center border border-dashed border-slate-200 bg-white">
+                                    <div class="qb-wheres-empty text-slate-500 text-[11px] italic py-1.5 text-center border border-dashed border-slate-300 bg-white">
                                         Sin filtros WHERE activos.
                                     </div>
                                 </div>
@@ -164,17 +167,19 @@
 
                             <!-- Ordenamiento y Límite -->
                             <div class="p-3 bg-slate-50 border border-slate-200 space-y-2">
-                                <span class="font-bold text-slate-800 uppercase text-[11px] flex items-center gap-1.5">
-                                    <i class="fa-solid fa-arrow-down-wide-short text-slate-700"></i> Orden y Límite
-                                </span>
+                                <div class="pb-1 border-b border-slate-200">
+                                    <span class="font-bold text-slate-800 uppercase text-[11px] flex items-center gap-1.5">
+                                        <i class="fa-solid fa-arrow-down-wide-short text-slate-700"></i> Orden y Límite
+                                    </span>
+                                </div>
                                 <div class="grid grid-cols-3 gap-2">
                                     <div class="col-span-2">
                                         <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Ordenar por:</label>
                                         <div class="flex gap-1">
-                                            <select class="qb-order-col w-full px-2 py-1 border border-slate-200 bg-white text-xs font-mono rounded-none">
+                                            <select class="qb-order-col w-full px-2 py-1.5 border border-slate-300 bg-white text-xs font-mono text-slate-800 rounded-none focus:outline-hidden">
                                                 <option value="">(Sin orden específico)</option>
                                             </select>
-                                            <select class="qb-order-dir px-2 py-1 border border-slate-200 bg-white text-xs font-bold rounded-none">
+                                            <select class="qb-order-dir px-2 py-1.5 border border-slate-300 bg-white text-xs font-bold text-slate-800 rounded-none focus:outline-hidden">
                                                 <option value="ASC">ASC</option>
                                                 <option value="DESC">DESC</option>
                                             </select>
@@ -182,7 +187,7 @@
                                     </div>
                                     <div>
                                         <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Límite (Filas):</label>
-                                        <input type="number" class="qb-limit-input w-full px-2 py-1 border border-slate-200 bg-white text-xs font-mono rounded-none" value="20" min="1" max="1000">
+                                        <input type="number" class="qb-limit-input w-full px-2 py-1.5 border border-slate-300 bg-white text-xs font-mono text-slate-800 rounded-none focus:outline-hidden" value="20" min="1" max="1000">
                                     </div>
                                 </div>
                             </div>
@@ -190,16 +195,17 @@
 
                         <!-- 5. Bloques UNION / UNION ALL -->
                         <div class="p-3 bg-slate-50 border border-slate-200 space-y-2.5">
-                            <div class="flex items-center justify-between">
+                            <div class="flex items-center justify-between pb-1.5 border-b border-slate-200">
                                 <span class="font-bold text-slate-800 uppercase text-[11px] flex items-center gap-1.5">
                                     <i class="fa-solid fa-code-merge text-purple-600"></i> Uniones de Conjuntos (UNION / UNION ALL)
                                 </span>
-                                <button type="button" class="qb-btn-add-union px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold rounded-none cursor-pointer">
-                                    <i class="fa-solid fa-plus mr-1"></i> Agregar Bloque UNION
+                                <button type="button" class="qb-btn-add-union px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-none cursor-pointer shadow-xs flex items-center gap-1">
+                                    <i class="fa-solid fa-plus text-[10px]"></i>
+                                    <span>Agregar Bloque UNION</span>
                                 </button>
                             </div>
                             <div class="qb-unions-container space-y-2">
-                                <div class="qb-unions-empty text-slate-400 text-xs italic py-2 text-center border border-dashed border-slate-200 bg-white">
+                                <div class="qb-unions-empty text-slate-500 text-xs italic py-2 text-center border border-dashed border-slate-300 bg-white">
                                     No hay bloques UNION activos. Puedes agregar conjuntos combinados si necesitas consolidar datos de múltiples tablas con la misma estructura.
                                 </div>
                             </div>
@@ -539,11 +545,11 @@
             }
 
             const row = document.createElement('div');
-            row.className = 'qb-join-row p-2.5 bg-white border border-slate-200 rounded-none space-y-2';
+            row.className = 'qb-join-row p-3 bg-white border border-slate-300 rounded-none space-y-2.5 shadow-2xs';
             row.innerHTML = `
-                <div class="flex items-center justify-between gap-2 pb-1 border-b border-slate-100">
-                    <div class="flex items-center gap-1.5 flex-1">
-                        <select class="qb-join-type px-2 py-1 border border-slate-200 bg-slate-50 font-bold text-indigo-700 text-xs rounded-none cursor-pointer">
+                <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-200">
+                    <div class="flex items-center gap-2 flex-1">
+                        <select class="qb-join-type px-2.5 py-1.5 border border-slate-300 bg-slate-100 font-bold text-slate-900 text-xs rounded-none cursor-pointer focus:outline-hidden">
                             <option value="INNER" ${joinObj.type === 'INNER' ? 'selected' : ''}>INNER JOIN</option>
                             <option value="LEFT" ${joinObj.type === 'LEFT' ? 'selected' : ''}>LEFT JOIN</option>
                             <option value="RIGHT" ${joinObj.type === 'RIGHT' ? 'selected' : ''}>RIGHT JOIN</option>
@@ -553,41 +559,44 @@
                         <div class="qb-join-table-picker flex-1" data-table-picker data-placeholder="Seleccionar tabla a unir...">
                             <input type="hidden" class="qb-join-table-val" value="${esc(joinObj.table)}">
                         </div>
-                        <input type="text" class="qb-join-alias w-16 px-2 py-1 border border-slate-200 font-mono text-xs rounded-none" value="${esc(joinObj.alias)}" placeholder="Alias">
+                        <div class="flex items-center gap-1">
+                            <span class="text-[10px] font-semibold text-slate-500 uppercase">Alias:</span>
+                            <input type="text" class="qb-join-alias w-16 px-2 py-1.5 border border-slate-300 bg-white font-mono text-xs text-slate-800 rounded-none focus:outline-hidden" value="${esc(joinObj.alias)}" placeholder="Alias">
+                        </div>
                     </div>
-                    <button type="button" class="qb-btn-remove-join text-slate-400 hover:text-red-600 text-xs p-1 cursor-pointer">
-                        <i class="fa-solid fa-trash"></i>
+                    <button type="button" class="qb-btn-remove-join text-slate-400 hover:text-red-600 hover:bg-red-50 text-xs px-2 py-1 rounded-none cursor-pointer transition">
+                        <i class="fa-solid fa-trash mr-1"></i> Quitar
                     </button>
                 </div>
 
                 <!-- Selector guiado en Cascada de la condición ON -->
-                <div class="qb-join-on-container text-[11px] p-2 bg-slate-50/70 border border-slate-100 space-y-1">
-                    <span class="font-bold text-slate-600 uppercase text-[10px] block mb-1">
-                        <i class="fa-solid fa-link text-indigo-500 mr-1"></i> Condición ON:
+                <div class="qb-join-on-container text-[11px] p-2.5 bg-slate-100/70 border border-slate-200 space-y-1.5">
+                    <span class="font-bold text-slate-700 uppercase text-[10px] flex items-center gap-1.5">
+                        <i class="fa-solid fa-link text-datamind-primary"></i> Condición de Unión (ON):
                     </span>
-                    <div class="flex flex-wrap items-center gap-1.5">
+                    <div class="flex flex-wrap items-center gap-2">
                         <!-- Lado Izquierdo: Alias -> Columna -->
-                        <div class="flex items-center gap-1 flex-1 min-w-[200px]">
-                            <select class="qb-on-left-alias w-1/2 px-1.5 py-1 border border-slate-200 bg-white font-mono text-xs rounded-none cursor-pointer">
+                        <div class="flex items-center gap-1 flex-1 min-w-[220px]">
+                            <select class="qb-on-left-alias w-1/2 px-2 py-1.5 border border-slate-300 bg-white font-mono text-xs text-slate-800 rounded-none cursor-pointer focus:outline-hidden">
                                 <option value="">-- Alias --</option>
                             </select>
-                            <select class="qb-on-left-col w-1/2 px-1.5 py-1 border border-slate-200 bg-white font-mono text-xs rounded-none cursor-pointer" disabled>
+                            <select class="qb-on-left-col w-1/2 px-2 py-1.5 border border-slate-300 bg-white font-mono text-xs text-slate-800 rounded-none cursor-pointer focus:outline-hidden disabled:bg-slate-100 disabled:text-slate-400" disabled>
                                 <option value="">-- Columna --</option>
                             </select>
                         </div>
 
                         <!-- Operador -->
-                        <select class="qb-on-op px-2 py-1 border border-slate-200 bg-white font-mono font-bold text-xs rounded-none">
+                        <select class="qb-on-op px-2.5 py-1.5 border border-slate-300 bg-white font-mono font-bold text-xs text-slate-800 rounded-none focus:outline-hidden">
                             <option value="=" ${onOp === '=' ? 'selected' : ''}>=</option>
                             <option value="!=" ${onOp === '!=' ? 'selected' : ''}>!=</option>
                         </select>
 
                         <!-- Lado Derecho: Alias -> Columna -->
-                        <div class="flex items-center gap-1 flex-1 min-w-[200px]">
-                            <select class="qb-on-right-alias w-1/2 px-1.5 py-1 border border-slate-200 bg-white font-mono text-xs rounded-none cursor-pointer">
+                        <div class="flex items-center gap-1 flex-1 min-w-[220px]">
+                            <select class="qb-on-right-alias w-1/2 px-2 py-1.5 border border-slate-300 bg-white font-mono text-xs text-slate-800 rounded-none cursor-pointer focus:outline-hidden">
                                 <option value="">-- Alias --</option>
                             </select>
-                            <select class="qb-on-right-col w-1/2 px-1.5 py-1 border border-slate-200 bg-white font-mono text-xs rounded-none cursor-pointer" disabled>
+                            <select class="qb-on-right-col w-1/2 px-2 py-1.5 border border-slate-300 bg-white font-mono text-xs text-slate-800 rounded-none cursor-pointer focus:outline-hidden disabled:bg-slate-100 disabled:text-slate-400" disabled>
                                 <option value="">-- Columna --</option>
                             </select>
                         </div>
