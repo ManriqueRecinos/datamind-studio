@@ -1169,20 +1169,7 @@
             statusEl.className = 'qb-compile-status text-[10px] text-amber-400';
 
             const payload = {
-                blueprint: {
-                    version: '1.0',
-                    primary: {
-                        base: this.state.base,
-                        joins: this.state.joins,
-                        select: this.state.select,
-                        where: this.state.where,
-                        group_by: this.state.group_by,
-                        order_by: this.state.order_by,
-                        limit: this.state.limit
-                    },
-                    unions: this.state.unions,
-                    raw_blocks: this.state.raw_blocks
-                },
+                blueprint: this.getBlueprint(),
                 dialect: 'postgres'
             };
 
@@ -1400,19 +1387,50 @@
         }
 
         getBlueprint() {
+            // Limpiar y garantizar tipos string válidos antes de serializar
+            const cleanJoins = this.state.joins.map(j => {
+                const cleanOn = (j.on || []).map(o => ({
+                    left: String(o.left ?? '').trim(),
+                    op: String(o.op ?? '=').trim(),
+                    right: String(o.right ?? '').trim()
+                }));
+                return {
+                    type: j.type || 'INNER',
+                    table: String(j.table ?? '').trim(),
+                    alias: j.alias ? String(j.alias).trim() : null,
+                    on: cleanOn
+                };
+            });
+
+            const cleanSelect = (this.state.select || []).map(s => ({
+                expr: String(s.expr ?? '*').trim() || '*',
+                alias: s.alias ? String(s.alias).trim() : null,
+                agg: s.agg ? String(s.agg).trim() : null
+            }));
+
+            const cleanWhere = (this.state.where || []).map(w => ({
+                left: String(w.left ?? '').trim(),
+                op: String(w.op ?? '=').trim(),
+                value: w.value !== undefined && w.value !== null ? String(w.value) : '',
+                logic: String(w.logic ?? 'AND').trim()
+            }));
+
             return {
                 version: '1.0',
                 primary: {
-                    base: this.state.base,
-                    joins: this.state.joins,
-                    select: this.state.select,
-                    where: this.state.where,
-                    group_by: this.state.group_by,
-                    order_by: this.state.order_by,
+                    base: {
+                        table: String(this.state.base.table ?? '').trim(),
+                        alias: this.state.base.alias ? String(this.state.base.alias).trim() : 't1'
+                    },
+                    joins: cleanJoins,
+                    select: cleanSelect,
+                    where: cleanWhere,
+                    group_by: this.state.group_by || [],
+                    order_by: this.state.order_by || [],
                     limit: this.state.limit
                 },
-                unions: this.state.unions,
-                raw_blocks: this.state.raw_blocks
+                unions: this.state.unions || [],
+                raw_blocks: this.state.raw_blocks || []
             };
         }
 
