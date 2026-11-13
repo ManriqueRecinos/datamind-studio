@@ -138,25 +138,32 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
                                 <div>
                                     <label class="block font-semibold text-slate-700 mb-1 text-[11px]">1. Tabla Origen</label>
-                                    <input type="text" id="trainSourceTable" placeholder="ej: users o role_user"
-                                           class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-xs font-mono rounded-none focus:outline-hidden">
+                                    <div id="trainSourceTablePicker" data-table-picker data-placeholder="Selecciona tabla origen...">
+                                        <input type="hidden" id="trainSourceTable">
+                                    </div>
                                 </div>
                                 <div>
                                     <label class="block font-semibold text-slate-700 mb-1 text-[11px]">2. Columna Foránea</label>
-                                    <input type="text" id="trainSourceCol" placeholder="ej: user_id o role_id"
-                                           class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-xs font-mono rounded-none focus:outline-hidden">
+                                    <select id="trainSourceCol" disabled
+                                            class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-xs font-mono rounded-none focus:outline-hidden disabled:bg-slate-100 disabled:text-slate-400">
+                                        <option value="">Primero elige la tabla origen</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="block font-semibold text-slate-700 mb-1 text-[11px]">3. Tabla Maestra</label>
-                                    <input type="text" id="trainTargetTable" placeholder="ej: roles o companies"
-                                           class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-xs font-mono rounded-none focus:outline-hidden">
+                                    <div id="trainTargetTablePicker" data-table-picker data-placeholder="Selecciona tabla maestra...">
+                                        <input type="hidden" id="trainTargetTable">
+                                    </div>
                                 </div>
                                 <div>
                                     <label class="block font-semibold text-slate-700 mb-1 text-[11px]">4. Campo Legible</label>
-                                    <input type="text" id="trainLabelCol" placeholder="name o nombre"
-                                           class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-xs font-mono rounded-none focus:outline-hidden">
+                                    <select id="trainLabelCol" disabled
+                                            class="w-full px-2.5 py-1.5 border border-slate-200 bg-white text-xs font-mono rounded-none focus:outline-hidden disabled:bg-slate-100 disabled:text-slate-400">
+                                        <option value="">Primero elige la tabla maestra</option>
+                                    </select>
                                 </div>
                             </div>
+                            <p id="relationHint" class="hidden text-[10px] text-slate-500"></p>
                         </div>
 
                         <!-- Campo para SQL Ejemplo -->
@@ -344,6 +351,8 @@
     </div>
 
     <x-slot:scripts>
+        <script src="{{ asset('js/table_picker.js') }}"></script>
+        <script src="{{ asset('js/relation_selectors.js') }}"></script>
         <script src="{{ asset('js/training_view.js') }}"></script>
     </x-slot:scripts>
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\FastApiClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class DatabaseConnectionController extends Controller
 {
@@ -145,6 +146,7 @@ class DatabaseConnectionController extends Controller
         }
 
         $result = $this->fastApiClient->updateConnection($connectionId, $validated);
+        Cache::forget(TrainingController::tablesCacheKey($connectionId));
         return response()->json($result, $result['success'] ? 200 : 400);
     }
 
@@ -184,6 +186,7 @@ class DatabaseConnectionController extends Controller
         ])->validate();
 
         $result = $this->fastApiClient->vectorizeTables($connectionId, $validated['tables']);
+        Cache::forget(TrainingController::tablesCacheKey($connectionId));
         return response()->json($result, $result['success'] ? 200 : 400);
     }
 
@@ -193,6 +196,7 @@ class DatabaseConnectionController extends Controller
     public function destroy(string $connectionId): JsonResponse
     {
         $result = $this->fastApiClient->deleteConnection($connectionId);
+        Cache::forget(TrainingController::tablesCacheKey($connectionId));
         return response()->json($result, $result['success'] ? 200 : 400);
     }
 

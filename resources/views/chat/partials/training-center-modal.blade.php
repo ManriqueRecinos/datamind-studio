@@ -63,34 +63,36 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">1. Tabla con los datos (Tabla Origen)</label>
-                        <input type="text" id="trainSourceTable" placeholder="ej: inventario_partes o users" 
-                               class="w-full px-3 py-2 border border-slate-200 bg-white text-xs font-mono rounded-md focus:border-datamind-primary focus:outline-hidden">
-                        <span class="text-[10px] text-slate-400">La tabla donde está el código o la clave foránea.</span>
+                        <div id="trainSourceTablePicker" data-table-picker data-placeholder="Selecciona tabla origen...">
+                            <input type="hidden" id="trainSourceTable">
+                        </div>
+                        <span class="text-[10px] text-slate-400">Solo tablas vectorizadas, de 10 en 10.</span>
                     </div>
 
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">2. Campo con el código foráneo (FK)</label>
-                        <input type="text" id="trainSourceCol" placeholder="ej: id_parte_maquina o current_company_id" 
-                               class="w-full px-3 py-2 border border-slate-200 bg-white text-xs font-mono rounded-md focus:border-datamind-primary focus:outline-hidden">
-                        <span class="text-[10px] text-slate-400">La columna numérica que apunta a la otra tabla.</span>
+                        <select id="trainSourceCol" disabled
+                                class="w-full px-3 py-2 border border-slate-200 bg-white text-xs font-mono rounded-md focus:outline-hidden disabled:bg-slate-100 disabled:text-slate-400">
+                            <option value="">Primero elige la tabla origen</option>
+                        </select>
+                        <span class="text-[10px] text-slate-400">La columna que apunta a la otra tabla.</span>
                     </div>
 
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">3. Tabla que tiene el nombre real (Tabla Maestra)</label>
-                        <input type="text" id="trainTargetTable" placeholder="ej: hop.parte_maquina o companies" 
-                               class="w-full px-3 py-2 border border-slate-200 bg-white text-xs font-mono rounded-md focus:border-datamind-primary focus:outline-hidden">
+                        <div id="trainTargetTablePicker" data-table-picker data-placeholder="Selecciona tabla maestra...">
+                            <input type="hidden" id="trainTargetTable">
+                        </div>
                         <span class="text-[10px] text-slate-400">La tabla catálogo donde reside el nombre legible.</span>
                     </div>
 
                     <div>
-                        <label class="block font-semibold text-slate-700 mb-1">4. Clave Primaria (PK) y Campo a Mostrar</label>
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="text" id="trainTargetCol" value="id" placeholder="id" title="Clave Primaria Maestra"
-                                   class="px-2.5 py-2 border border-slate-200 bg-white text-xs font-mono rounded-md focus:border-datamind-primary focus:outline-hidden">
-                            <input type="text" id="trainLabelCol" placeholder="nombre o name" title="Columna con el nombre real"
-                                   class="px-2.5 py-2 border border-datamind-primary/60 bg-emerald-50/50 text-xs font-mono font-semibold text-slate-800 rounded-md focus:border-datamind-primary focus:outline-hidden">
-                        </div>
-                        <span class="text-[10px] text-slate-400">Izquierda: PK (generalmente <code>id</code>). Derecha: campo legible a mostrar.</span>
+                        <label class="block font-semibold text-slate-700 mb-1">4. Campo a Mostrar</label>
+                        <select id="trainLabelCol" disabled
+                                class="w-full px-3 py-2 border border-datamind-primary/60 bg-emerald-50/50 text-xs font-mono font-semibold rounded-md focus:outline-hidden disabled:bg-slate-100 disabled:text-slate-400">
+                            <option value="">Primero elige la tabla maestra</option>
+                        </select>
+                        <span class="text-[10px] text-slate-400">La llave primaria se detecta sola.</span>
                     </div>
                 </div>
             </div>

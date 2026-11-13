@@ -1,4 +1,4 @@
-﻿<x-app-layout
+<x-app-layout
     title="Bases de Datos Registradas"
     ecosystem="vectorization"
     ecosystemLabel="Ecosistema de Vectorización & Bases de Datos"
@@ -371,6 +371,8 @@
 
     <x-slot:scripts>
         <script src="{{ asset('js/connections_manager.js') }}"></script>
+        <script src="{{ asset('js/table_picker.js') }}"></script>
+        <script src="{{ asset('js/relation_selectors.js') }}"></script>
         <script src="{{ asset('js/training_manager.js') }}"></script>
     </x-slot:scripts>
 

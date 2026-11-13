@@ -151,7 +151,17 @@
     }
 
     // Inicializar listeners del Centro de Entrenamiento
+    let legacyRelation = null;
+
     function initTrainingCenter() {
+        legacyRelation = window.RelationSelectors ? RelationSelectors.init({
+            sourcePickerEl: document.getElementById('trainSourceTablePicker'),
+            targetPickerEl: document.getElementById('trainTargetTablePicker'),
+            sourceColSelect: trainSourceCol,
+            labelColSelect: trainLabelCol,
+            getConnectionId: () => (activeConnectionSelect ? activeConnectionSelect.value : (window.currentConnectionId || '')),
+            notify: notify,
+        }) : null;
         if (!aiTrainingModal) return;
 
         // Soporte para botones que abran el modal tanto en el Sidebar como en la barra o tarjetas
@@ -192,11 +202,7 @@
                 const cat = trainCategoryInput ? trainCategoryInput.value : 'custom_relation';
                 if (cat === 'custom_relation') {
                     if (trainTitleInput) trainTitleInput.value = 'Relación users con roles por role_user';
-                    if (trainSourceTable) trainSourceTable.value = 'users';
-                    if (trainSourceCol) trainSourceCol.value = 'id';
-                    if (trainTargetTable) trainTargetTable.value = 'roles';
-                    if (trainTargetCol) trainTargetCol.value = 'id';
-                    if (trainLabelCol) trainLabelCol.value = 'name';
+                    if (legacyRelation) legacyRelation.applyExample();
                     if (trainContentInput) {
                         trainContentInput.value = 'La tabla users se relaciona con la tabla roles por medio de la tabla intermedia role_user uniendo users.id = role_user.user_id y role_user.role_id = roles.id. Muestra siempre roles.name como el nombre del rol.';
                     }
@@ -248,7 +254,7 @@
                     source_table: trainSourceTable ? trainSourceTable.value.trim() : null,
                     source_column: trainSourceCol ? trainSourceCol.value.trim() : null,
                     target_table: trainTargetTable ? trainTargetTable.value.trim() : null,
-                    target_column: trainTargetCol ? trainTargetCol.value.trim() : 'id',
+                    target_column: legacyRelation ? legacyRelation.getTargetPk() : 'id',
                     label_column: trainLabelCol ? trainLabelCol.value.trim() : null,
                     sql_query: trainSqlQueryInput ? trainSqlQueryInput.value.trim() : null,
                 };
@@ -274,6 +280,7 @@
 
                     notify('success', '¡Conocimiento vectorizado y aprendido por la IA en pgvector!', 'Centro de Aprendizaje');
                     await loadLearnedRules();
+                    if (legacyRelation) legacyRelation.reset();
                     switchTrainingTab('tabLearnedList');
                 } catch (err) {
                     notify('error', err.message || 'Error al vectorizar la regla.', 'Centro de Aprendizaje');

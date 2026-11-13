@@ -6,6 +6,7 @@ use App\Services\FastApiClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class TrainingController extends Controller
@@ -28,6 +29,119 @@ class TrainingController extends Controller
             'activeConnection' => $activeConnection,
             'isOnline' => $isOnline,
         ]);
+    }
+
+    /**
+     * Lista paginada (10 en 10) de las tablas vectorizadas de una conexión, con búsqueda por nombre.
+     * Usa `synced_tables` de la conexión: no requiere introspección de la base remota.
+     */
+    public function vectorizedTables(Request $request): JsonResponse
+    {
+        $connectionId = (string) $request->query('connection_id', '');
+        $search = mb_strtolower(trim((string) $request->query('search', '')));
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = min(50, max(1, (int) $request->query('per_page', 10)));
+
+        $connection = $this->findConnection($connectionId);
+        if (!$connection) {
+            return response()->json(['success' => false, 'message' => 'Conexión no encontrada.'], 404);
+        }
+
+        $tables = collect($connection['synced_tables'] ?? [])
+            ->map(fn ($t) => (string) $t)
+            ->filter(fn ($t) => $search === '' || str_contains(mb_strtolower($t), $search))
+            ->sort(SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+
+        $total = $tables->count();
+        $slice = $tables->slice(($page - 1) * $perPage, $perPage)->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $slice->map(fn ($t) => ['table_name' => $t])->all(),
+            'page' => $page,
+            'total' => $total,
+            'has_more' => ($page * $perPage) < $total,
+        ]);
+    }
+
+    /**
+     * Columnas, llaves foráneas y llave primaria de una tabla vectorizada.
+     * La introspección completa se cachea por conexión para no consultar la base remota en cada clic.
+     */
+    public function tableColumns(Request $request): JsonResponse
+    {
+        $connectionId = (string) $request->query('connection_id', '');
+        $table = trim((string) $request->query('table', ''));
+
+        $connection = $this->findConnection($connectionId);
+        if (!$connection) {
+            return response()->json(['success' => false, 'message' => 'Conexión no encontrada.'], 404);
+        }
+
+        $synced = collect($connection['synced_tables'] ?? [])->map(fn ($t) => mb_strtolower((string) $t));
+        if ($table === '' || !$synced->contains(mb_strtolower($table))) {
+            return response()->json(['success' => false, 'message' => 'La tabla no está vectorizada en esta conexión.'], 404);
+        }
+
+        $payload = Cache::remember(self::tablesCacheKey($connectionId), 600, function () use ($connectionId) {
+            $res = $this->fastApiClient->getConnectionTables($connectionId);
+            return ($res['success'] ?? false) ? $res['data'] : null;
+        });
+
+        if (!$payload) {
+            Cache::forget(self::tablesCacheKey($connectionId));
+            return response()->json(['success' => false, 'message' => 'No se pudo leer la estructura de la base de datos.'], 502);
+        }
+
+        $info = collect($payload['tables'] ?? [])->first(
+            fn ($t) => mb_strtolower((string) ($t['table_name'] ?? '')) === mb_strtolower($table)
+        );
+        if (!$info) {
+            return response()->json(['success' => false, 'message' => 'No se encontró la estructura de la tabla.'], 404);
+        }
+
+        $fks = collect($info['foreign_keys'] ?? [])->keyBy(fn ($fk) => $fk['column'] ?? '');
+        $columns = collect($info['columns'] ?? [])->map(function ($c) use ($fks) {
+            $name = (string) ($c['name'] ?? '');
+            $fk = $fks->get($name);
+            return [
+                'name' => $name,
+                'type' => $c['type'] ?? null,
+                'is_fk' => $fk !== null,
+                'references' => $fk ? [
+                    'table' => $fk['referenced_table'] ?? null,
+                    'column' => $fk['referenced_column'] ?? 'id',
+                ] : null,
+            ];
+        })->values();
+
+        $labelCandidates = ['name', 'nombre', 'descripcion', 'description', 'title', 'titulo', 'label'];
+        $labelSuggestion = collect($labelCandidates)->first(
+            fn ($cand) => $columns->contains(fn ($c) => mb_strtolower($c['name']) === $cand)
+        );
+
+        return response()->json([
+            'success' => true,
+            'columns' => $columns->all(),
+            'primary_key' => $info['primary_key'] ?? 'id',
+            'label_suggestion' => $labelSuggestion,
+        ]);
+    }
+
+    public static function tablesCacheKey(string $connectionId): string
+    {
+        return 'training.tables.' . $connectionId;
+    }
+
+    private function findConnection(string $connectionId): ?array
+    {
+        if ($connectionId === '') {
+            return null;
+        }
+        $connections = $this->fastApiClient->listConnections();
+        $found = collect($connections)->first(fn ($c) => (string) ($c['id'] ?? '') === $connectionId);
+        return $found ?: null;
     }
 
     /**

@@ -92,13 +92,36 @@
     function resetNewRuleForm() {
         if (trainTitleInput) trainTitleInput.value = '';
         if (trainContentInput) trainContentInput.value = '';
-        if (trainSourceTable) trainSourceTable.value = '';
-        if (trainSourceCol) trainSourceCol.value = '';
-        if (trainTargetTable) trainTargetTable.value = '';
-        if (trainTargetCol) trainTargetCol.value = 'id';
-        if (trainLabelCol) trainLabelCol.value = '';
+        resetRelationSelectors();
         if (trainSqlQueryInput) trainSqlQueryInput.value = '';
         selectTrainingCategory('custom_relation');
+    }
+
+    /* ===== Selectores guiados (Relaciones JOIN): ver relation_selectors.js ===== */
+    let relationSelectors = null;
+
+    function currentConnId() {
+        return activeConnectionSelect ? activeConnectionSelect.value : '';
+    }
+
+    function resetRelationSelectors() {
+        if (relationSelectors) relationSelectors.reset();
+    }
+
+    function initRelationSelectors() {
+        relationSelectors = window.RelationSelectors ? RelationSelectors.init({
+            sourcePickerEl: document.getElementById('trainSourceTablePicker'),
+            targetPickerEl: document.getElementById('trainTargetTablePicker'),
+            sourceColSelect: trainSourceCol,
+            labelColSelect: trainLabelCol,
+            getConnectionId: currentConnId,
+            notify: notify,
+        }) : null;
+        if (activeConnectionSelect) activeConnectionSelect.addEventListener('change', resetRelationSelectors);
+    }
+
+    function applyExampleRelation() {
+        if (relationSelectors) relationSelectors.applyExample();
     }
 
     function selectTrainingCategory(cat) {
@@ -270,6 +293,7 @@
 
     // Inicialización de Eventos DOM
     document.addEventListener('DOMContentLoaded', function () {
+        initRelationSelectors();
         loadLearnedRules();
 
         if (activeConnectionSelect) {
@@ -312,11 +336,7 @@
                 const cat = trainCategoryInput ? trainCategoryInput.value : 'custom_relation';
                 if (cat === 'custom_relation') {
                     if (trainTitleInput) trainTitleInput.value = 'Relación users con roles por role_user';
-                    if (trainSourceTable) trainSourceTable.value = 'users';
-                    if (trainSourceCol) trainSourceCol.value = 'id';
-                    if (trainTargetTable) trainTargetTable.value = 'roles';
-                    if (trainTargetCol) trainTargetCol.value = 'id';
-                    if (trainLabelCol) trainLabelCol.value = 'name';
+                    applyExampleRelation();
                     if (trainContentInput) {
                         trainContentInput.value = 'La tabla users se relaciona con la tabla roles por medio de la tabla intermedia role_user uniendo users.id = role_user.user_id y role_user.role_id = roles.id. Muestra siempre roles.name como el nombre del rol.';
                     }
@@ -355,6 +375,17 @@
                     return;
                 }
 
+                if (cat === 'custom_relation') {
+                    const missing = !(trainSourceTable && trainSourceTable.value)
+                        || !(trainSourceCol && trainSourceCol.value)
+                        || !(trainTargetTable && trainTargetTable.value)
+                        || !(trainLabelCol && trainLabelCol.value);
+                    if (missing) {
+                        notify('warning', 'Selecciona tabla origen, columna foránea, tabla maestra y campo legible.', 'Centro de Aprendizaje');
+                        return;
+                    }
+                }
+
                 const payload = {
                     category: cat,
                     title: title,
@@ -363,7 +394,7 @@
                     source_table: trainSourceTable ? trainSourceTable.value.trim() : null,
                     source_column: trainSourceCol ? trainSourceCol.value.trim() : null,
                     target_table: trainTargetTable ? trainTargetTable.value.trim() : null,
-                    target_column: trainTargetCol ? trainTargetCol.value.trim() : 'id',
+                    target_column: relationSelectors ? relationSelectors.getTargetPk() : 'id',
                     label_column: trainLabelCol ? trainLabelCol.value.trim() : null,
                     sql_query: trainSqlQueryInput ? trainSqlQueryInput.value.trim() : null,
                 };

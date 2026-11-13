@@ -83,6 +83,8 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('training')->name('training.')->group(function () {
         Route::get('/', [TrainingController::class, 'index'])->name('index');
         Route::post('/ingest', [TrainingController::class, 'ingestFile'])->name('ingest');
+        Route::get('/vectorized-tables', [TrainingController::class, 'vectorizedTables'])->name('tables');
+        Route::get('/vectorized-tables/columns', [TrainingController::class, 'tableColumns'])->name('columns');
     });
 
     // ECOSISTEMA 3: Configuración & Apariencia
