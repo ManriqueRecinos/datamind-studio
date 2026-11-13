@@ -570,9 +570,9 @@
             if (!joinData) this.state.joins.push(joinObj);
 
             // Desglosar condición ON existente: "t1.id" -> alias "t1", col "id"
-            let leftAlias = this.state.base.alias || 't1';
+            let leftAlias = this.state.base.alias || '';
             let leftCol = '';
-            let rightAlias = joinObj.alias || defaultAlias;
+            let rightAlias = joinObj.alias || '';
             let rightCol = '';
             let onOp = '=';
 
@@ -649,6 +649,46 @@
 
             container.appendChild(row);
 
+            const leftAliasSel = row.querySelector('.qb-on-left-alias');
+            const leftColSel = row.querySelector('.qb-on-left-col');
+            const rightAliasSel = row.querySelector('.qb-on-right-alias');
+            const rightColSel = row.querySelector('.qb-on-right-col');
+            const opSel = row.querySelector('.qb-on-op');
+
+            // Manejadores en cascada de Columnas
+            const updateColsForAlias = async (aliasSel, colSel, targetColVal) => {
+                const a = aliasSel.value;
+                if (!a) {
+                    colSel.innerHTML = '<option value="">-- Elige tabla --</option>';
+                    colSel.disabled = true;
+                    return;
+                }
+                const t = this.getTableForAlias(a);
+                if (!t) {
+                    colSel.innerHTML = '<option value="">-- Sin tabla --</option>';
+                    colSel.disabled = true;
+                    return;
+                }
+                colSel.innerHTML = '<option value="">Cargando columnas...</option>';
+                colSel.disabled = true;
+
+                const colsData = await this.fetchTableColumns(t);
+                colSel.innerHTML = '<option value="">-- Seleccionar Columna --</option>';
+                if (colsData && colsData.columns && colsData.columns.length > 0) {
+                    colsData.columns.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.name;
+                        opt.textContent = `${c.name} (${c.type || 'varchar'})${c.is_fk ? ' [FK]' : ''}`;
+                        if (c.name === targetColVal) opt.selected = true;
+                        colSel.appendChild(opt);
+                    });
+                    colSel.disabled = false;
+                } else {
+                    colSel.innerHTML = '<option value="">(Sin columnas)</option>';
+                    colSel.disabled = true;
+                }
+            };
+
             // Inicializar Picker de Tabla
             const pickerEl = row.querySelector('.qb-join-table-picker');
             const aliasInput = row.querySelector('.qb-join-alias');
@@ -667,17 +707,24 @@
 
                         await this.fetchTableColumns(tableName);
                         this.refreshAllAliasSelectors();
-                        this.autoSuggestJoinOn(joinObj, row);
+
+                        // Si autoSuggestJoinOn logra enlazar, actualiza; si no, poblar columnas de la tabla unida
+                        const suggested = await this.autoSuggestJoinOn(joinObj, row);
+                        if (!suggested) {
+                            // Por defecto lado derecho = tabla unida
+                            rightAliasSel.value = smartAlias;
+                            await updateColsForAlias(rightAliasSel, rightColSel, '');
+                            // Si lado izquierdo no tiene alias, usar base
+                            if (!leftAliasSel.value && this.state.base.alias) {
+                                leftAliasSel.value = this.state.base.alias;
+                                await updateColsForAlias(leftAliasSel, leftColSel, '');
+                            }
+                        }
+
                         this.scheduleCompile();
                     }
                 });
             }
-
-            const leftAliasSel = row.querySelector('.qb-on-left-alias');
-            const leftColSel = row.querySelector('.qb-on-left-col');
-            const rightAliasSel = row.querySelector('.qb-on-right-alias');
-            const rightColSel = row.querySelector('.qb-on-right-col');
-            const opSel = row.querySelector('.qb-on-op');
 
             // Llenar selects de alias
             const sources = this.getAvailableSources();
@@ -686,31 +733,6 @@
 
             if (leftAlias) leftAliasSel.value = leftAlias;
             if (rightAlias) rightAliasSel.value = rightAlias;
-
-            // Manejadores en cascada de Columnas
-            const updateColsForAlias = async (aliasSel, colSel, targetColVal) => {
-                const a = aliasSel.value;
-                if (!a) {
-                    colSel.innerHTML = '<option value="">-- Elige tabla --</option>';
-                    colSel.disabled = true;
-                    return;
-                }
-                const t = this.getTableForAlias(a);
-                const colsData = await this.fetchTableColumns(t);
-                colSel.innerHTML = '<option value="">-- Seleccionar Columna --</option>';
-                if (colsData && colsData.columns) {
-                    colsData.columns.forEach(c => {
-                        const opt = document.createElement('option');
-                        opt.value = c.name;
-                        opt.textContent = `${c.name} (${c.type || 'varchar'})${c.is_fk ? ' [FK]' : ''}`;
-                        if (c.name === targetColVal) opt.selected = true;
-                        colSel.appendChild(opt);
-                    });
-                    colSel.disabled = false;
-                } else {
-                    colSel.disabled = true;
-                }
-            };
 
             leftAliasSel.addEventListener('change', () => {
                 updateColsForAlias(leftAliasSel, leftColSel, '');
@@ -843,7 +865,9 @@
                 fillAndSet(rightColSel, targetCols, rCol);
 
                 joinObj.on = [{ left: `${lAlias}.${lCol}`, op: '=', right: `${rAlias}.${rCol}` }];
+                return true;
             }
+            return false;
         }
 
         addSelectRow(selectData = null) {
