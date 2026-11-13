@@ -501,9 +501,8 @@
             if (currentVectorFilter === 'unvectorized' && t.is_vectorized) return false;
 
             if (!filterText) return true;
-            return t.table_name.toLowerCase().includes(filterText) ||
-                   schema.toLowerCase().includes(filterText) ||
-                   (t.column_names_preview || '').toLowerCase().includes(filterText);
+            // Buscar únicamente por nombre de tabla (no por columnas ni llaves foráneas de otras tablas)
+            return t.table_name.toLowerCase().includes(filterText);
         });
 
         if (filtered.length === 0) {

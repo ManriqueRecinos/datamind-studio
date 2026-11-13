@@ -139,7 +139,7 @@
 
                 <div class="relative w-full sm:w-64">
                     <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-xs text-slate-400"></i>
-                    <input type="text" id="tableSearchInput" placeholder="Filtrar tabla o columna..."
+                    <input type="text" id="tableSearchInput" placeholder="Buscar por nombre de tabla..."
                         class="w-full pl-7 pr-2.5 py-1 border border-slate-200 bg-white text-xs text-slate-800 rounded-none focus:outline-hidden">
                 </div>
             </div>
