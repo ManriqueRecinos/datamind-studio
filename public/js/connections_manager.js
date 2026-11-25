@@ -427,6 +427,9 @@
 
             const payload = json.data;
             allDetectedTables = payload.tables || [];
+            window.allDetectedRoutines = payload.routines || [];
+            const routinesBadge = document.getElementById('routinesCountBadge');
+            if (routinesBadge) routinesBadge.textContent = window.allDetectedRoutines.length;
 
             if (explorerTitle) explorerTitle.textContent = `Tablas en ${payload.connection.name} (${payload.connection.database_name})`;
             if (explorerSubtitle) explorerSubtitle.textContent = `Motor ${payload.connection.engine.toUpperCase()} en ${payload.connection.host}:${payload.connection.port} — Selecciona tablas para pgvector o examina su estructura.`;
@@ -1038,4 +1041,77 @@
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
     }
+    function renderRoutinesRows() {
+        const tbody = document.getElementById('routinesListBody');
+        if (!tbody) return;
+        const routines = window.allDetectedRoutines || [];
+        if (!routines.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-xs text-slate-400">No se encontraron funciones ni procedimientos almacenados.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = routines.map((r, idx) => {
+            const isProc = (r.routine_type || '').toUpperCase() === 'PROCEDURE';
+            const badge = isProc
+                ? '<span class="px-1.5 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">PROCEDURE</span>'
+                : '<span class="px-1.5 py-0.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">FUNCTION</span>';
+            const params = r.parameters ? escapeHtml(r.parameters) : '<span class="text-slate-400">Sin parámetros</span>';
+            const ret = r.return_type ? ` &rarr; <span class="font-mono text-emerald-700">${escapeHtml(r.return_type)}</span>` : '';
+            return `<tr class="hover:bg-slate-50 cursor-pointer routine-row-item" data-routine-idx="${idx}">
+                <td class="py-2 px-3">${badge}</td>
+                <td class="py-2 px-3 font-mono text-[11px] text-slate-500">${escapeHtml(r.schema_name || 'default')}</td>
+                <td class="py-2 px-3 font-mono font-semibold text-slate-800">${escapeHtml(r.routine_name)}</td>
+                <td class="py-2 px-3 text-[11px] text-slate-600">${params}${ret}</td>
+            </tr>`;
+        }).join('');
+
+        tbody.querySelectorAll('.routine-row-item').forEach(row => {
+            row.addEventListener('click', () => {
+                const idx = parseInt(row.getAttribute('data-routine-idx'), 10);
+                const r = routines[idx];
+                if (!r) return;
+                const modal = document.getElementById('modalRoutineStructure');
+                const titleEl = document.getElementById('modalRoutineTitle');
+                const subEl = document.getElementById('modalRoutineSubtitle');
+                const commentEl = document.getElementById('modalRoutineComment');
+                const defEl = document.getElementById('modalRoutineDefinition');
+                if (titleEl) titleEl.textContent = `${(r.routine_type || 'FUNCTION').toUpperCase()}: ${r.routine_name}`;
+                if (subEl) subEl.textContent = `Esquema: ${r.schema_name || 'default'} | Retorno: ${r.return_type || 'void'} | Parámetros: ${r.parameters || 'N/A'}`;
+                if (commentEl) {
+                    if (r.comment) {
+                        commentEl.textContent = r.comment;
+                        commentEl.classList.remove('hidden');
+                    } else {
+                        commentEl.classList.add('hidden');
+                    }
+                }
+                if (defEl) defEl.textContent = r.definition || '-- Definición no disponible (verifica permisos de lectura en la BD).';
+                modal?.classList.remove('hidden');
+            });
+        });
+    }
+
+    ['btnCloseRoutineModal', 'btnDismissRoutineModal'].forEach(id => {
+        document.getElementById(id)?.addEventListener('click', () => {
+            document.getElementById('modalRoutineStructure')?.classList.add('hidden');
+        });
+    });
+
+    document.getElementById('btnTabTables')?.addEventListener('click', () => {
+        document.getElementById('tablesGridWrapper')?.classList.remove('hidden');
+        document.getElementById('routinesGridWrapper')?.classList.add('hidden');
+        document.getElementById('btnTabTables')?.classList.add('bg-datamind-primary', 'text-white', 'border-datamind-primary');
+        document.getElementById('btnTabTables')?.classList.remove('bg-white', 'text-slate-700', 'border-slate-200');
+        document.getElementById('btnTabRoutines')?.classList.remove('bg-datamind-primary', 'text-white', 'border-datamind-primary');
+        document.getElementById('btnTabRoutines')?.classList.add('bg-white', 'text-slate-700', 'border-slate-200');
+    });
+
+    document.getElementById('btnTabRoutines')?.addEventListener('click', () => {
+        document.getElementById('tablesGridWrapper')?.classList.add('hidden');
+        document.getElementById('routinesGridWrapper')?.classList.remove('hidden');
+        document.getElementById('btnTabRoutines')?.classList.add('bg-datamind-primary', 'text-white', 'border-datamind-primary');
+        document.getElementById('btnTabRoutines')?.classList.remove('bg-white', 'text-slate-700', 'border-slate-200');
+        document.getElementById('btnTabTables')?.classList.remove('bg-datamind-primary', 'text-white', 'border-datamind-primary');
+        document.getElementById('btnTabTables')?.classList.add('bg-white', 'text-slate-700', 'border-slate-200');
+        renderRoutinesRows();
+    });
 })();

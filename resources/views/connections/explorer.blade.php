@@ -135,6 +135,12 @@
                     <button type="button" id="btnSelectUnvectorized" class="text-xs font-semibold px-2 py-0.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer rounded-none">
                         <i class="fa-solid fa-wand-magic-sparkles mr-1 text-amber-500"></i> No Vectorizadas
                     </button>
+                    <button type="button" id="btnTabTables" class="text-xs font-bold px-2.5 py-0.5 bg-datamind-primary text-white border border-datamind-primary rounded-none cursor-pointer">
+                        <i class="fa-solid fa-table mr-1"></i> Tablas
+                    </button>
+                    <button type="button" id="btnTabRoutines" class="text-xs font-semibold px-2.5 py-0.5 bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 rounded-none cursor-pointer">
+                        <i class="fa-solid fa-code mr-1 text-indigo-600"></i> Funciones / SP <span id="routinesCountBadge" class="ml-1 font-mono text-[10px] px-1 bg-slate-100 text-slate-600">0</span>
+                    </button>
                 </div>
 
                 <div class="relative w-full sm:w-64">
@@ -169,6 +175,23 @@
                                 </tr>
                             </thead>
                             <tbody id="tablesListBody" class="divide-y divide-slate-100 bg-white">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="routinesGridWrapper" class="hidden flex-1 flex flex-col min-h-0 border border-slate-200 rounded-none bg-white">
+                    <div class="flex-1 overflow-auto custom-scrollbar">
+                        <table class="w-full text-xs text-left text-slate-700 border-collapse">
+                            <thead class="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase sticky top-0 z-20 shadow-xs">
+                                <tr>
+                                    <th class="py-2.5 px-3 bg-slate-50 w-28">Tipo</th>
+                                    <th class="py-2.5 px-3 bg-slate-50">Esquema</th>
+                                    <th class="py-2.5 px-3 bg-slate-50">Nombre</th>
+                                    <th class="py-2.5 px-3 bg-slate-50">Parámetros / Retorno</th>
+                                </tr>
+                            </thead>
+                            <tbody id="routinesListBody" class="divide-y divide-slate-100 bg-white">
                             </tbody>
                         </table>
                     </div>
@@ -286,6 +309,33 @@
             <!-- Modal Footer -->
             <div class="px-4 py-2.5 border-t border-slate-200 bg-slate-50 flex items-center justify-end shrink-0">
                 <button type="button" id="btnDismissModal" class="px-3 py-1.5 bg-white border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-none cursor-pointer">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ESTRUCTURA DE FUNCIÓN / PROCEDIMIENTO ALMACENADO -->
+    <div id="modalRoutineStructure" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white border border-slate-200 w-full max-w-3xl max-h-[85vh] flex flex-col rounded-none shadow-xl">
+            <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+                <div>
+                    <h3 id="modalRoutineTitle" class="text-sm font-bold text-slate-900 font-mono">Rutina</h3>
+                    <p id="modalRoutineSubtitle" class="text-[11px] text-slate-500 mt-0.5"></p>
+                </div>
+                <button type="button" id="btnCloseRoutineModal" class="text-slate-400 hover:text-slate-700 px-2 py-1 cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-4 overflow-auto custom-scrollbar flex-1 space-y-3">
+                <div id="modalRoutineComment" class="hidden text-xs text-slate-700 bg-amber-50 border border-amber-200 px-3 py-2"></div>
+                <div>
+                    <div class="text-[10px] font-bold uppercase text-slate-500 mb-1">Definición SQL</div>
+                    <pre id="modalRoutineDefinition" class="bg-slate-950 text-emerald-400 p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap border border-slate-800"></pre>
+                </div>
+            </div>
+            <div class="px-4 py-2.5 border-t border-slate-200 bg-slate-50 flex items-center justify-end shrink-0">
+                <button type="button" id="btnDismissRoutineModal" class="px-3 py-1.5 bg-white border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-none cursor-pointer">
                     Cerrar
                 </button>
             </div>

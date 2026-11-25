@@ -1238,7 +1238,7 @@
                         <p class="text-[11px] text-datamind-secondary font-medium">${row_count} registros devueltos &bull; SQL Analítico</p>
                     </div>
                 </div>
-                <div class="flex flex-wrap items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2 ${(autoExpandTable && !autoExpandChart) ? 'hidden' : ''}">
                     <button type="button" id="${tableToggleBtnId}"
                             class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white hover:bg-slate-50 text-datamind-dark border border-datamind-light/85 text-xs font-semibold shadow-2xs transition duration-150 cursor-pointer">
                         <i class="fa-solid fa-table text-datamind-primary text-xs"></i>

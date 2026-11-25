@@ -53,6 +53,18 @@
         <form id="formTrainKnowledge" onsubmit="return false;" class="space-y-4 bg-white p-4 border border-slate-200 rounded-xl shadow-2xs">
             <input type="hidden" id="trainCategoryInput" value="custom_relation">
 
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Concepto / Dominio</label>
+                <div class="flex items-center gap-2">
+                    <select id="trainingConceptSelect" name="concept_id" class="flex-1 px-3 py-1.5 border border-slate-300 bg-white text-xs text-slate-800 rounded-lg">
+                        <option value="">-- Seleccionar Concepto --</option>
+                    </select>
+                    <button type="button" id="btnOpenConceptModal" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs font-bold text-slate-800 rounded-lg cursor-pointer whitespace-nowrap">
+                        <i class="fa-solid fa-plus mr-1 text-datamind-primary"></i> Crear nuevo
+                    </button>
+                </div>
+            </div>
+
             <!-- BLOQUE ASISTIDO 1: Relación entre Tablas (Simple y visual) -->
             <div id="customRelationFields" class="space-y-3 p-3 bg-slate-50/80 border border-slate-200 rounded-lg">
                 <div class="flex items-center gap-2 text-xs font-bold text-slate-800 border-b border-slate-200 pb-2">
@@ -185,3 +197,91 @@
         </div>
     </div>
 </x-modal>
+
+
+<!-- MODAL: CREAR NUEVO CONCEPTO -->
+<div id="modalCreateConcept" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 w-full max-w-md rounded-none shadow-xl">
+        <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <h3 class="text-sm font-bold text-slate-900"><i class="fa-solid fa-tags mr-1 text-datamind-primary"></i> Nuevo Concepto</h3>
+            <button type="button" id="btnCloseConceptModal" class="text-slate-400 hover:text-slate-700 cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="formCreateConcept" class="p-4 space-y-3">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Nombre corto *</label>
+                <input type="text" id="conceptShortName" maxlength="50" required placeholder="Ej. SEG, PROD, INV" class="w-full px-3 py-1.5 border border-slate-300 text-xs rounded-none">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Nombre largo *</label>
+                <input type="text" id="conceptLongName" maxlength="150" required placeholder="Ej. Seguridad y Permisos" class="w-full px-3 py-1.5 border border-slate-300 text-xs rounded-none">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Descripción *</label>
+                <textarea id="conceptDescription" rows="3" required placeholder="Describe qué abarca este concepto para que la IA lo diferencie..." class="w-full px-3 py-1.5 border border-slate-300 text-xs rounded-none"></textarea>
+            </div>
+            <div class="pt-2 flex justify-end gap-2">
+                <button type="button" id="btnCancelConceptModal" class="px-3 py-1.5 bg-white border border-slate-300 text-xs font-semibold text-slate-700 rounded-none cursor-pointer">Cancelar</button>
+                <button type="submit" id="btnSaveConcept" class="px-3 py-1.5 bg-datamind-primary text-white text-xs font-bold rounded-none cursor-pointer">Guardar y Vectorizar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    (function () {
+        async function loadConcepts(selectIdAfter) {
+            const sel = document.getElementById('trainingConceptSelect');
+            if (!sel) return;
+            try {
+                const res = await fetch('/training/concepts', { headers: { 'Accept': 'application/json' } });
+                if (!res.ok) return;
+                const list = await res.json();
+                sel.innerHTML = '<option value="">-- Seleccionar Concepto --</option>' +
+                    list.map(c => `<option value="${c.id}">[${c.short_name}] ${c.long_name}</option>`).join('');
+                if (selectIdAfter) sel.value = selectIdAfter;
+                if (window.jQuery && jQuery.fn.select2) {
+                    jQuery(sel).trigger('change');
+                }
+            } catch (e) {}
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConcepts();
+            const modal = document.getElementById('modalCreateConcept');
+            document.getElementById('btnOpenConceptModal')?.addEventListener('click', () => modal?.classList.remove('hidden'));
+            ['btnCloseConceptModal', 'btnCancelConceptModal'].forEach(id => {
+                document.getElementById(id)?.addEventListener('click', () => modal?.classList.add('hidden'));
+            });
+            document.getElementById('formCreateConcept')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('btnSaveConcept');
+                btn.disabled = true;
+                try {
+                    const res = await fetch('/training/concepts', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                        },
+                        body: JSON.stringify({
+                            short_name: document.getElementById('conceptShortName').value.trim(),
+                            long_name: document.getElementById('conceptLongName').value.trim(),
+                            description: document.getElementById('conceptDescription').value.trim()
+                        })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.detail || 'Error al crear concepto');
+                    modal?.classList.add('hidden');
+                    e.target.reset();
+                    await loadConcepts(data.id);
+                    if (window.toastr) window.toastr.success('Concepto creado y vectorizado');
+                } catch (err) {
+                    if (window.toastr) window.toastr.error(err.message);
+                } finally {
+                    btn.disabled = false;
+                }
+            });
+        });
+    })();
+</script>

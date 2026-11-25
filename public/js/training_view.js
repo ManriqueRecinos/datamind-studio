@@ -214,11 +214,13 @@
 
         rulesCardsGrid.innerHTML = filtered.map(rule => {
             const meta = categoryMeta[rule.category] || { label: rule.category, bg: 'bg-slate-50 text-slate-600 border-slate-200' };
+            const conceptShort = (rule.metadata && rule.metadata.concept_short_name) ? rule.metadata.concept_short_name : '';
             const previewText = (rule.content || '').substring(0, 160) + ((rule.content || '').length > 160 ? '...' : '');
 
             return `
                 <div class="rule-card group p-4 bg-white border border-slate-200 hover:border-datamind-primary transition duration-150 cursor-pointer flex flex-col justify-between shadow-2xs hover:shadow-xs rounded-none"
-                     data-rule-id="${escapeHtml(rule.id)}">
+                     data-rule-id="${escapeHtml(rule.id)}"
+                     data-concept="${escapeHtml(conceptShort.toLowerCase())}">
                     <div>
                         <div class="flex items-center justify-between gap-2 mb-2">
                             <span class="text-[9px] font-bold px-2 py-0.5 border rounded-none ${meta.bg}">
@@ -295,9 +297,14 @@
             `;
         }
 
+        const conceptLabel = meta.concept_long_name
+            ? `[${meta.concept_short_name || ''}] ${meta.concept_long_name}`
+            : (meta.concept_id || 'Sin concepto');
+
         detailRuleMeta.innerHTML = `
             <div><strong>ID Documento:</strong> <span class="text-slate-700">${escapeHtml(rule.id)}</span></div>
             <div><strong>Categoría:</strong> <span class="text-slate-700">${escapeHtml(rule.category)}</span></div>
+            <div><strong>Concepto:</strong> <span class="text-slate-700">${escapeHtml(conceptLabel)}</span></div>
             <div><strong>Conexión ID:</strong> <span class="text-slate-700">${escapeHtml(meta.connection_id || 'Global')}</span></div>
             <div><strong>Registrado:</strong> <span class="text-slate-700">${rule.created_at ? new Date(rule.created_at).toLocaleString() : 'N/A'}</span></div>
             ${editInBuilderBtn}
@@ -455,7 +462,16 @@
                         return;
                     }
                 } else if (cat === 'composite_query') {
-                    const compiledSql = queryBuilderInstance ? queryBuilderInstance.getCompiledSql() : '';
+                    let compiledSql = queryBuilderInstance ? queryBuilderInstance.getCompiledSql() : '';
+                    if (!compiledSql || compiledSql.startsWith('--') || compiledSql.trim() === 'SELECT * FROM ...') {
+                        const editorSql = (document.querySelector('.qb-sql-textarea')?.value || '').trim();
+                        if (editorSql && /^select\b/i.test(editorSql)) {
+                            if (queryBuilderInstance && typeof queryBuilderInstance.parseSqlToBlueprint === 'function') {
+                                queryBuilderInstance.parseSqlToBlueprint(editorSql);
+                            }
+                            compiledSql = editorSql;
+                        }
+                    }
                     if (!compiledSql || compiledSql.startsWith('--')) {
                         notify('warning', 'Configura la tabla base y las uniones en el constructor antes de guardar.', 'Centro de Aprendizaje');
                         return;
@@ -464,9 +480,12 @@
 
                 const finalCategory = (cat === 'composite_query') ? 'sql_example' : cat;
                 const blueprintMeta = (cat === 'composite_query' && queryBuilderInstance) ? queryBuilderInstance.getBlueprint() : null;
-                const finalSql = (cat === 'composite_query' && queryBuilderInstance)
+                let finalSql = (cat === 'composite_query' && queryBuilderInstance)
                     ? queryBuilderInstance.getCompiledSql()
                     : (trainSqlQueryInput ? trainSqlQueryInput.value.trim() : null);
+                if (cat === 'composite_query' && (!finalSql || finalSql.startsWith('--') || finalSql.trim() === 'SELECT * FROM ...')) {
+                    finalSql = (document.querySelector('.qb-sql-textarea')?.value || '').trim();
+                }
 
                 const payload = {
                     category: finalCategory,
@@ -487,6 +506,7 @@
                 btnSaveTrainingRule.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Vectorizando en pgvector...';
 
                 try {
+                    payload.concept_id = document.getElementById('trainingConceptSelect')?.value || null;
                     const res = await fetch('/chat/training/train', {
                         method: 'POST',
                         headers: {
@@ -503,9 +523,8 @@
 
                     notify('success', '¡Conocimiento vectorizado con éxito en pgvector!', 'Centro de Aprendizaje');
                     
-                    // REQUERIMIENTO DEL USUARIO: Limpiar todo el formulario al guardar
+                    // Limpiar el formulario sin cerrar la vista de Nueva Regla
                     resetNewRuleForm();
-                    if (newRuleFormContainer) newRuleFormContainer.classList.add('hidden');
 
                     await loadLearnedRules();
                 } catch (err) {

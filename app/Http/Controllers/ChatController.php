@@ -69,6 +69,7 @@ class ChatController extends Controller
             'prompt' => 'required|string|max:2000',
             'session_id' => 'nullable|string',
             'connection_id' => 'nullable|string',
+            'concept_id' => 'nullable|string',
         ])->validate();
 
         $user = Auth::user();
@@ -107,6 +108,7 @@ class ChatController extends Controller
             'prompt' => 'required|string|max:2000',
             'session_id' => 'nullable|string',
             'connection_id' => 'nullable|string',
+            'concept_id' => 'nullable|string',
             'retry_message_id' => 'nullable|string',
             'attachment_ids' => 'nullable|array',
         ])->validate();
@@ -249,6 +251,7 @@ class ChatController extends Controller
             'title' => 'required|string|min:3|max:255',
             'content' => 'required|string|min:5|max:4000',
             'connection_id' => 'nullable|string',
+            'concept_id' => 'nullable|string',
             'source_table' => 'nullable|string',
             'source_column' => 'nullable|string',
             'target_table' => 'nullable|string',
