@@ -19,6 +19,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role_id',
+        'suma_user_id',
         'is_active',
     ];
 

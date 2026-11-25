@@ -122,3 +122,106 @@ Route::middleware(['auth'])->group(function () {
     });
 
 });
+
+
+Route::post('/suma-sync-user', function (\Illuminate\Http\Request $request) {
+    $token = $request->header('X-Sync-Token');
+    if ($token !== 'suma_datamind_sync_2026') {
+        return response()->json(['error' => 'Unauthorized'], 401);
+    }
+
+    $data = $request->validate([
+        'suma_user_id' => 'required|integer',
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|max:255',
+        'password' => 'required|string|min:1',
+    ]);
+
+    $defaultRoleId = \App\Models\Role::where('slug', 'user')->value('id')
+        ?? \App\Models\Role::value('id');
+
+    $user = \App\Models\User::where('suma_user_id', $data['suma_user_id'])
+        ->orWhere('email', $data['email'])
+        ->first();
+
+    $passwordUpdated = false;
+    $userCreated = false;
+
+    if (!$user) {
+        $user = \App\Models\User::create([
+            'suma_user_id' => $data['suma_user_id'],
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => $data['password'],
+            'role_id' => $defaultRoleId,
+            'is_active' => true,
+        ]);
+        $userCreated = true;
+    } else {
+        $updates = [];
+
+        if (empty($user->suma_user_id)) {
+            $updates['suma_user_id'] = $data['suma_user_id'];
+        }
+        if (!empty($data['name']) && $user->name !== $data['name']) {
+            $updates['name'] = $data['name'];
+        }
+
+        // Si inició sesión en suma_spt con una contraseña diferente a la almacenada en el chat, actualizarla a la nueva
+        if (!\Illuminate\Support\Facades\Hash::check($data['password'], $user->password)) {
+            $updates['password'] = $data['password'];
+            $updates['password_changed_at'] = now();
+            $passwordUpdated = true;
+        }
+
+        if (!empty($updates)) {
+            $user->update($updates);
+        }
+    }
+
+    return response()->json([
+        'ok' => true,
+        'user_id' => $user->id,
+        'created' => $userCreated,
+        'password_updated' => $passwordUpdated,
+    ]);
+})->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class]);
+
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/training/concepts', function () {
+        $baseUrl = rtrim(config('services.fastapi.url', 'http://127.0.0.1:8000'), '/');
+        $token = config('services.fastapi.token', 'datamind_api_secret_token_2026');
+        $res = \Illuminate\Support\Facades\Http::withToken($token)->get("{$baseUrl}/knowledge/concepts");
+        return response()->json($res->json(), $res->status());
+    });
+
+    Route::post('/training/concepts', function (\Illuminate\Http\Request $request) {
+        $baseUrl = rtrim(config('services.fastapi.url', 'http://127.0.0.1:8000'), '/');
+        $token = config('services.fastapi.token', 'datamind_api_secret_token_2026');
+        $res = \Illuminate\Support\Facades\Http::withToken($token)->post("{$baseUrl}/knowledge/concepts", [
+            'short_name' => $request->input('short_name'),
+            'long_name' => $request->input('long_name'),
+            'description' => $request->input('description'),
+        ]);
+        return response()->json($res->json(), $res->status());
+    });
+});
+
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/settings/concepts', function () {
+        return view('settings.concepts');
+    })->name('settings.concepts');
+
+    Route::put('/training/concepts/{conceptId}', function (\Illuminate\Http\Request $request, string $conceptId) {
+        $baseUrl = rtrim(config('services.fastapi.url', 'http://127.0.0.1:8000/api/v1'), '/');
+        $token = config('services.fastapi.token', 'datamind_api_secret_token_2026');
+        $res = \Illuminate\Support\Facades\Http::withToken($token)->put("{$baseUrl}/knowledge/concepts/{$conceptId}", [
+            'short_name' => $request->input('short_name'),
+            'long_name' => $request->input('long_name'),
+            'description' => $request->input('description'),
+        ]);
+        return response()->json($res->json(), $res->status());
+    });
+});
