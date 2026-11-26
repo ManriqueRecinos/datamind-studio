@@ -52,7 +52,7 @@
         </aside>
 
         <!-- Columna Derecha: Vista Monolítica de Bases Guardadas -->
-        <section class="flex-1 flex flex-col bg-slate-50/20 overflow-y-auto custom-scrollbar p-6">
+        <section id="training-main-content" class="flex-1 flex flex-col bg-slate-50/20 overflow-y-auto custom-scrollbar p-6">
             <div class="max-w-6xl w-full mx-auto space-y-5">
 
                 <!-- Header de la Vista -->
@@ -376,4 +376,5 @@
         <script src="{{ asset('js/training_manager.js') }}"></script>
     </x-slot:scripts>
 
+    @include('settings.partials.settings-spa-nav')
 </x-app-layout>

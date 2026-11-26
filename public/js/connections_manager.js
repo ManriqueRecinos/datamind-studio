@@ -219,7 +219,7 @@
                     detectedSchemasContainer.classList.remove('hidden');
                 }
 
-                if (window.toastr) toastr.success(`BD analizada: ${info.tables_detected} tablas encontradas.`, 'DataMind Studio');
+                if (window.toastr) toastr.success(`BD analizada: ${info.tables_detected} tablas encontradas.`, window.APP_NAME || 'Sin Nombre');
             } else {
                 throw new Error(json.message || 'Fallo al conectar con el servidor de base de datos.');
             }
@@ -271,7 +271,7 @@
             if (response.ok && json.success) {
                 const created = json.data;
                 if (window.toastr) {
-                    toastr.success(`Base de datos "${created.name}" guardada y activada.`, 'DataMind Studio');
+                    toastr.success(`Base de datos "${created.name}" guardada y activada.`, window.APP_NAME || 'Sin Nombre');
                 }
                 modalNewConnection?.classList.add('hidden');
                 // Redirigir al explorador con la base recién creada
@@ -1002,7 +1002,7 @@
 
             const json = await res.json();
             if (res.ok && json.success) {
-                if (window.toastr) toastr.success(`Conexión "${name}" actualizada correctamente.`, 'DataMind Studio');
+                if (window.toastr) toastr.success(`Conexión "${name}" actualizada correctamente.`, window.APP_NAME || 'Sin Nombre');
                 document.getElementById('modalEditConnection')?.classList.add('hidden');
                 window.location.reload();
             } else {

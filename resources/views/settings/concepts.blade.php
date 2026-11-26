@@ -1,5 +1,5 @@
 <x-app-layout
-    title="Conceptos de Conocimiento - DataMind Studio"
+    title="Conceptos de Conocimiento"
     ecosystem="vectorization"
     ecosystemLabel="Vectorización & Bases de Datos"
     ecosystemIcon="fa-database"
@@ -12,24 +12,30 @@
             <x-ecosystem-sidebar ecosystemKey="vectorization" />
         </aside>
 
-        <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 bg-slate-50/20">
-        <div class="flex items-center justify-between border-b border-slate-200 pb-4">
-            <div>
-                <h1 class="text-lg font-bold text-slate-900">
-                    <i class="fa-solid fa-tags text-datamind-primary mr-2"></i> Conceptos de Conocimiento
-                </h1>
-                <p class="text-xs text-slate-500 mt-0.5">Haz clic en cualquier concepto para editarlo y re-vectorizarlo en pgvector.</p>
+        <section id="training-main-content" class="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
+            <!-- Barra Superior de la Vista -->
+            <div class="px-5 py-3 border-b border-slate-200 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="h-9 w-9 bg-datamind-primary text-white flex items-center justify-center font-bold text-base rounded-none shadow-none">
+                        <i class="fa-solid fa-tags"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-sm font-bold text-slate-900 leading-tight">Conceptos de Conocimiento</h1>
+                        <p class="text-[11px] text-slate-500">Haz clic en cualquier concepto para editarlo y re-vectorizarlo en pgvector.</p>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <div id="conceptsCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div class="col-span-full py-12 text-center text-xs text-slate-400">Cargando conceptos...</div>
-        </div>
-        </div>
+            <div class="flex-1 p-6 overflow-y-auto custom-scrollbar space-y-6 bg-slate-50/30">
+                <div id="conceptsCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="col-span-full py-12 text-center text-xs text-slate-400">Cargando conceptos...</div>
+                </div>
+            </div>
+        </section>
     </main>
 
     <!-- MODAL: EDITAR Y RE-VECTORIZAR CONCEPTO -->
-    <div id="modalEditConcept" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div id="modalEditConcept" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs items-center justify-center p-4">
         <div class="bg-white border border-slate-200 w-full max-w-md rounded-none shadow-xl">
             <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                 <h3 class="text-sm font-bold text-slate-900"><i class="fa-solid fa-pen-to-square mr-1 text-datamind-primary"></i> Editar Concepto</h3>
@@ -148,4 +154,5 @@
             })();
         </script>
     </x-slot:scripts>
+    @include('settings.partials.settings-spa-nav')
 </x-app-layout>

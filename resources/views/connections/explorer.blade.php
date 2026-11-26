@@ -64,7 +64,7 @@
         </aside>
 
         <!-- Columna Derecha: Explorador Dedicado de Tablas y Esquemas -->
-        <section class="flex-1 flex flex-col bg-white overflow-hidden rounded-none border-0">
+        <section id="training-main-content" class="flex-1 flex flex-col bg-white overflow-hidden rounded-none border-0">
 
             <!-- Cabecera Ceñida del Explorador -->
             <div class="px-4 py-3 border-b border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
@@ -354,4 +354,5 @@
         <script src="{{ asset('js/training_manager.js') }}"></script>
     </x-slot:scripts>
 
+    @include('settings.partials.settings-spa-nav')
 </x-app-layout>

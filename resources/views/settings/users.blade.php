@@ -33,9 +33,8 @@
         </aside>
 
         <!-- Contenido Central: Tabla de Usuarios y Auditoría IA Rectos Adosados -->
-        <div class="flex-1 flex flex-col overflow-hidden">
+        <div id="settings-main-content" class="flex-1 flex flex-col overflow-hidden">
             <!-- Barra de Pestañas Horizontales de Navegación Rápida -->
-            @include('settings.partials.settings-nav-tabs', ['activeTab' => 'users'])
 
             <div class="flex-1 p-6 overflow-y-auto custom-scrollbar flex flex-col gap-6 bg-slate-50/30">
 
@@ -414,4 +413,5 @@
             }
         }
     </script>
+    @include('settings.partials.settings-spa-nav')
 </x-app-layout>

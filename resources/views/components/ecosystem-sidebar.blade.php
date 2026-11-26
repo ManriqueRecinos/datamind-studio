@@ -29,70 +29,69 @@
         </div>
 
         <!-- Módulos e Interfaces Cargados Dinámicamente desde Base de Datos -->
-        <div class="space-y-3">
+        <div class="space-y-1">
             @foreach($ecosystem->modules as $mod)
                 @php
                     $activeInterfaces = $mod->interfaces->where('is_active', true);
                 @endphp
                 @if($activeInterfaces->isNotEmpty())
-                    <div>
-                        <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                            <i class="fa-solid {{ $mod->icon }} text-datamind-primary text-[10px]"></i> {{ $mod->name }}
-                        </h4>
-                        <div class="space-y-1">
-                            @foreach($activeInterfaces as $iface)
-                                @if($iface->action_type === 'trigger')
-                                <button type="button"
-                                        id="{{ ltrim($iface->route_or_action, '#') }}"
-                                        class="w-full text-left p-2 border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-xs text-slate-700 hover:text-slate-900 transition flex items-center justify-between rounded-none cursor-pointer">
-                                    <span class="flex items-center gap-2">
-                                        <i class="fa-solid {{ $iface->icon }} text-datamind-primary text-xs"></i>
-                                        <span>{{ $iface->name }}</span>
-                                    </span>
-                                    @if($iface->badge_label)
-                                        <span class="text-[9px] font-bold px-1 py-0.2 rounded-none bg-datamind-neutral text-datamind-dark border border-slate-200">{{ $iface->badge_label }}</span>
-                                    @endif
-                                </button>
-                            @elseif($iface->action_type === 'modal')
-                                <button type="button"
-                                        id="{{ ltrim($iface->route_or_action, '#') }}"
-                                        class="w-full text-left p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-800 transition flex items-center justify-between rounded-none cursor-pointer">
-                                    <span class="flex items-center gap-2">
-                                        <i class="fa-solid {{ $iface->icon }} text-datamind-primary text-xs"></i>
-                                        <span>{{ $iface->name }}</span>
-                                    </span>
-                                    @if($iface->badge_label)
-                                        <span class="text-[9px] font-bold px-1 py-0.2 rounded-none bg-datamind-primary text-white">{{ $iface->badge_label }}</span>
-                                    @endif
-                                </button>
-                            @elseif($iface->action_type === 'anchor')
-                                <a href="{{ $iface->route_or_action }}"
-                                   class="block p-2 border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-xs text-slate-700 hover:text-slate-900 transition flex items-center justify-between rounded-none">
-                                    <span class="flex items-center gap-2">
-                                        <i class="fa-solid {{ $iface->icon }} text-datamind-primary text-xs"></i>
-                                        <span>{{ $iface->name }}</span>
-                                    </span>
-                                    @if($iface->badge_label)
-                                        <span class="text-[9px] font-bold px-1 py-0.2 rounded-none bg-slate-100 text-slate-600 border border-slate-200">{{ $iface->badge_label }}</span>
-                                    @endif
-                                </a>
-                            @else
-                                <a href="{{ route($iface->route_or_action) }}"
-                                   class="block p-2 border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-xs text-slate-700 hover:text-slate-900 transition flex items-center justify-between rounded-none">
-                                    <span class="flex items-center gap-2">
-                                        <i class="fa-solid {{ $iface->icon }} text-datamind-primary text-xs"></i>
-                                        <span>{{ $iface->name }}</span>
-                                    </span>
-                                    @if($iface->badge_label)
-                                        <span class="text-[9px] font-bold px-1 py-0.2 rounded-none bg-slate-100 text-slate-600 border border-slate-200">{{ $iface->badge_label }}</span>
-                                    @endif
-                                </a>
-                            @endif
-                        @endforeach
-                    </div>
-                </div>
+                    @foreach($activeInterfaces as $iface)
+                        @if($iface->action_type === 'trigger' || $iface->action_type === 'modal')
+                            <button type="button"
+                                    id="{{ ltrim($iface->route_or_action, '#') }}"
+                                    class="w-full text-left px-2.5 py-1.5 border-l-2 border-l-transparent text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all duration-150 flex items-center justify-between cursor-pointer">
+                                <span class="flex items-center gap-2">
+                                    <i class="fa-solid {{ $iface->icon }} text-datamind-primary text-xs"></i>
+                                    <span>{{ $iface->name }}</span>
+                                </span>
+                                @if($iface->badge_label)
+                                    <span class="text-[9px] font-semibold text-slate-400">{{ $iface->badge_label }}</span>
+                                @endif
+                            </button>
+                        @elseif($iface->action_type === 'anchor')
+                            <a href="{{ $iface->route_or_action }}"
+                               class="px-2.5 py-1.5 border-l-2 border-l-transparent text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all duration-150 flex items-center justify-between">
+                                <span class="flex items-center gap-2">
+                                    <i class="fa-solid {{ $iface->icon }} text-datamind-primary text-xs"></i>
+                                    <span>{{ $iface->name }}</span>
+                                </span>
+                                @if($iface->badge_label)
+                                    <span class="text-[9px] font-semibold text-slate-400">{{ $iface->badge_label }}</span>
+                                @endif
+                            </a>
+                        @else
+                            @php
+                                $ifaceUrl = route($iface->route_or_action);
+                                $isActive = request()->url() === $ifaceUrl || request()->routeIs($iface->route_or_action);
+                            @endphp
+                            <a href="{{ $ifaceUrl }}"
+                               class="{{ $isActive ? 'px-2.5 py-1.5 border-l-2 border-l-datamind-primary bg-datamind-neutral/40 text-xs font-semibold text-datamind-primary transition-all duration-150 flex items-center justify-between' : 'px-2.5 py-1.5 border-l-2 border-l-transparent text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all duration-150 flex items-center justify-between' }}">
+                                <span class="flex items-center gap-2">
+                                    <i class="fa-solid {{ $iface->icon }} text-datamind-primary text-xs"></i>
+                                    <span>{{ $iface->name }}</span>
+                                </span>
+                                @if($iface->badge_label)
+                                    <span class="text-[9px] font-semibold text-slate-400">{{ $iface->badge_label }}</span>
+                                @endif
+                            </a>
+                        @endif
+                    @endforeach
                 @endif
             @endforeach
+
+            @if($ecosystemKey === 'vectorization' && Route::has('training.neural_lab.index'))
+                @php
+                    $nlUrl = route('training.neural_lab.index');
+                    $nlActive = request()->url() === $nlUrl || request()->routeIs('training.neural_lab.*');
+                @endphp
+                <a href="{{ $nlUrl }}"
+                   class="{{ $nlActive ? 'px-2.5 py-1.5 border-l-2 border-l-datamind-primary bg-datamind-neutral/40 text-xs font-semibold text-datamind-primary transition-all duration-150 flex items-center justify-between' : 'px-2.5 py-1.5 border-l-2 border-l-transparent text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all duration-150 flex items-center justify-between' }}">
+                    <span class="flex items-center gap-2">
+                        <i class="fa-solid fa-brain text-datamind-primary text-xs"></i>
+                        <span>Laboratorio Neuronal</span>
+                    </span>
+                </a>
+            @endif
         </div>
     </div>
 @endif
