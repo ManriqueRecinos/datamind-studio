@@ -1370,11 +1370,20 @@
 
         async runDryRun() {
             const root = this.container.querySelector('.qb-root');
-            const previewSql = root.querySelector('.qb-preview-sql').textContent;
+            const sqlTextarea = root ? root.querySelector('.qb-sql-textarea') : null;
+            const previewEl = root ? root.querySelector('.qb-preview-sql') : null;
+            const isSqlEditorVisible = sqlTextarea && sqlTextarea.offsetParent !== null;
+            const previewSql = (isSqlEditorVisible && sqlTextarea.value.trim())
+                ? sqlTextarea.value.trim()
+                : (previewEl ? previewEl.textContent.trim() : '');
             const connId = this.getConnectionId();
 
             if (!connId) {
                 this.notify('Selecciona primero una base de datos vinculada.', 'error');
+                return;
+            }
+            if (!previewSql || previewSql.startsWith('--')) {
+                this.notify('Construye o escribe una consulta SQL válida antes de probar.', 'error');
                 return;
             }
 
@@ -1383,18 +1392,22 @@
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Probando...';
             btn.disabled = true;
 
+            const token = (typeof csrfToken !== 'undefined' && csrfToken)
+                ? csrfToken
+                : (document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '');
+
             try {
                 const res = await fetch('/training/query-blueprint/dry-run', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
+                        'X-CSRF-TOKEN': token,
                         'Accept': 'application/json'
                     },
                     body: JSON.stringify({
                         sql: previewSql,
                         connection_id: connId,
-                        dialect: 'postgres'
+                        dialect: (typeof this.getDialect === 'function' ? this.getDialect() : 'postgres')
                     })
                 });
                 const json = await res.json();

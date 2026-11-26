@@ -14,48 +14,12 @@
         <!-- Sidebar Izquierdo Adosado Continuo (Piso a Techo) -->
         <aside class="hidden lg:flex flex-col w-80 shrink-0 bg-white border-r border-slate-200 overflow-y-auto custom-scrollbar rounded-none">
 
-            <!-- Módulo Dinámico desde Base de Datos -->
-            <x-ecosystem-sidebar ecosystemKey="chat" />
-
             <!-- Botón Recto de Nueva Conversación -->
             <div class="p-3 border-b border-slate-200 bg-slate-50/70">
                 <button type="button" id="btnNewChat" class="w-full py-2 px-3 bg-datamind-primary hover:opacity-95 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer rounded-none transition shadow-none">
                     <i class="fa-solid fa-plus text-xs"></i>
                     <span>Nueva Conversación</span>
                 </button>
-            </div>
-
-            <!-- Selector Recto de Base de Datos Activa para Chat -->
-            <div class="p-3.5 border-b border-slate-200 bg-white">
-                <div class="flex items-center justify-between mb-1">
-                    <label for="activeConnectionSelect" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                        <i class="fa-solid fa-database text-datamind-primary text-[10px]"></i> Base de Datos / Alcance
-                    </label>
-                    @guest
-                        <a href="{{ route('login') }}" class="text-[9px] font-bold text-datamind-primary hover:underline">
-                            Iniciar Sesión <i class="fa-solid fa-arrow-right ml-0.5"></i>
-                        </a>
-                    @endguest
-                </div>
-
-                @guest
-                    <select id="activeConnectionSelect" class="w-full bg-slate-50 text-xs font-semibold text-slate-800 p-2 border border-slate-200 focus:outline-hidden rounded-none" title="Conocimiento global de todas las bases y documentos">
-                        <option value="global" selected>🌐 Conocimiento Global (Todo)</option>
-                    </select>
-                    <p class="text-[10px] text-slate-400 mt-1">
-                        <i class="fa-solid fa-lock text-[9px] mr-0.5"></i> Modo Libre: Consultas conceptuales y reglas generales. Inicia sesión para conectar bases específicas.
-                    </p>
-                @else
-                    <select id="activeConnectionSelect" class="w-full bg-slate-50 text-xs font-semibold text-slate-800 p-2 border border-slate-200 focus:outline-hidden cursor-pointer rounded-none" title="Seleccionar base de datos para consultas SQL">
-                        <option value="global">🌐 Conocimiento Global (Todas las Bases & Conceptos)</option>
-                        @forelse($connections ?? [] as $conn)
-                            <option value="{{ $conn['id'] }}" {{ !empty($conn['is_active']) ? 'selected' : '' }}>
-                                {{ $conn['name'] }} ({{ strtoupper($conn['engine']) }}: {{ $conn['database_name'] }})
-                            </option>
-                        @empty
-                        @endforelse
-                    </select>
-                @endguest
             </div>
 
             <!-- Módulo: Historial de Conversaciones del Usuario (Recto) -->
@@ -102,7 +66,7 @@
         </aside>
 
         <!-- Área Central del Chat Monolítica Recta (Adosada Directamente al Sidebar) -->
-        <section class="flex-1 flex flex-col bg-white overflow-hidden rounded-none border-0">
+        <section class="flex-1 min-w-0 flex flex-col bg-white overflow-hidden rounded-none border-0">
             
             <!-- Ventana de Mensajes con Scroll -->
             <div id="chatScrollableArea" class="flex-1 p-6 overflow-y-auto custom-scrollbar">
@@ -156,7 +120,7 @@
                         </button>
 
                         <div class="relative flex-1">
-                            <textarea id="promptInput" name="promptInput" rows="2" placeholder="Pregúntale a DataMind AI... (ej: Muestra el total de ventas por sucursal)"
+                            <textarea id="promptInput" name="promptInput" rows="2" placeholder="Pregúntale a {{ config('app.name', 'Sin Nombre') }}... (ej: Muestra el total de ventas por sucursal)"
                                 class="w-full pl-3.5 pr-10 py-2.5 text-xs text-slate-800 bg-white border border-slate-200 focus:outline-hidden focus:border-datamind-primary transition rounded-none resize-none custom-scrollbar"></textarea>
                             
                             <button type="button" id="btnVoiceInput" class="hidden absolute right-2.5 top-2.5 text-slate-400 hover:text-datamind-primary p-1 cursor-pointer" title="Entrada por voz">

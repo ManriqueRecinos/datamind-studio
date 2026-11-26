@@ -51,7 +51,7 @@
         </aside>
 
         <!-- Panel Central Principal (Piso a Techo) -->
-        <section class="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
+        <section id="training-main-content" class="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
             
             <!-- Barra Superior de la Vista (Debajo del Navbar global) con Botón INGEST -->
             <div class="px-5 py-3 border-b border-slate-200 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3 shrink-0">
@@ -84,55 +84,49 @@
             <!-- Contenedor Desplazable con Tabs y Cards -->
             <div class="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5 bg-slate-50/20">
 
-                <!-- Formulario Plegable de Nueva Regla -->
-                <div id="newRuleFormContainer" class="hidden bg-white border border-slate-200 p-4.5 rounded-none shadow-xs space-y-4">
-                    <div class="flex items-center justify-between pb-2 border-b border-slate-200">
-                        <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fa-solid fa-wand-magic-sparkles text-datamind-primary"></i> Enseñar Nueva Regla o Relación a la IA
-                        </h3>
-                        <button type="button" id="btnCloseNewRuleForm" class="text-slate-400 hover:text-slate-700 text-xs cursor-pointer p-1">
-                            <i class="fa-solid fa-xmark"></i> Ocultar
-                        </button>
-                    </div>
+                <!-- Modal de Nueva Regla -->
+                <div id="newRuleFormContainer" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div class="bg-white border border-slate-200 w-[960px] max-w-[92vw] h-[88vh] min-h-[88vh] max-h-[88vh] flex flex-col overflow-hidden rounded-none shadow-xl">
+                        <div class="p-5 pb-3 border-b border-slate-200 bg-white shrink-0 space-y-3">
+                            <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-wand-magic-sparkles text-datamind-primary"></i> Enseñar Nueva Regla o Relación a la IA
+                                </h3>
+                                <button type="button" id="btnCloseNewRuleForm" class="text-slate-400 hover:text-slate-700 text-xs cursor-pointer p-1">
+                                    <i class="fa-solid fa-xmark"></i> Cerrar
+                                </button>
+                            </div>
 
-                    <!-- Selección de Categoría en Tarjetas -->
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 mb-1.5 uppercase">Selecciona el Tipo de Enseñanza:</label>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-                            <button type="button" data-category="custom_relation" class="template-type-btn active p-3 border-2 border-datamind-primary bg-datamind-light/10 text-left transition cursor-pointer rounded-none">
-                                <div class="text-xs font-bold text-datamind-dark flex items-center gap-1.5 mb-1">
-                                    <i class="fa-solid fa-link text-datamind-primary"></i> Unir 2 Tablas (JOIN)
+                            <!-- Selección de Categoría en Tarjetas Compactas (Solo Título) -->
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 mb-1.5 uppercase">Tipo de Enseñanza:</label>
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    <button type="button" data-category="composite_query" class="template-type-btn active px-2.5 py-2 border-2 border-datamind-primary bg-datamind-light/10 text-left transition cursor-pointer rounded-none">
+                                        <div class="text-[11px] font-bold text-datamind-dark flex items-center gap-1.5 truncate">
+                                            <i class="fa-solid fa-diagram-project text-purple-600"></i> Consulta Compuesta
+                                        </div>
+                                    </button>
+                                    <button type="button" data-category="business_rule" class="template-type-btn px-2.5 py-2 border border-slate-200 hover:border-slate-400 bg-white text-left transition cursor-pointer rounded-none">
+                                        <div class="text-[11px] font-bold text-slate-800 flex items-center gap-1.5 truncate">
+                                            <i class="fa-solid fa-tags text-amber-600"></i> Códigos y Estados
+                                        </div>
+                                    </button>
+                                    <button type="button" data-category="sql_example" class="template-type-btn px-2.5 py-2 border border-slate-200 hover:border-slate-400 bg-white text-left transition cursor-pointer rounded-none">
+                                        <div class="text-[11px] font-bold text-slate-800 flex items-center gap-1.5 truncate">
+                                            <i class="fa-solid fa-code text-indigo-600"></i> SQL Ejemplo
+                                        </div>
+                                    </button>
+                                    <button type="button" data-category="kpi_formula" class="template-type-btn px-2.5 py-2 border border-slate-200 hover:border-slate-400 bg-white text-left transition cursor-pointer rounded-none">
+                                        <div class="text-[11px] font-bold text-slate-800 flex items-center gap-1.5 truncate">
+                                            <i class="fa-solid fa-calculator text-emerald-600"></i> Fórmula / KPI
+                                        </div>
+                                    </button>
                                 </div>
-                                <p class="text-[10px] text-slate-500 leading-tight">Conecta tablas foráneas simples y sugiere campos legibles.</p>
-                            </button>
-                            <button type="button" data-category="composite_query" class="template-type-btn p-3 border border-slate-200 hover:border-slate-400 bg-white text-left transition cursor-pointer rounded-none">
-                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5 mb-1">
-                                    <i class="fa-solid fa-diagram-project text-purple-600"></i> Consulta Compuesta (Builder)
-                                </div>
-                                <p class="text-[10px] text-slate-500 leading-tight">Constructor visual & script SQL enorme (múltiples JOINs, UNIONs y filtros).</p>
-                            </button>
-                            <button type="button" data-category="business_rule" class="template-type-btn p-3 border border-slate-200 hover:border-slate-400 bg-white text-left transition cursor-pointer rounded-none">
-                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5 mb-1">
-                                    <i class="fa-solid fa-tags text-amber-600"></i> Códigos y Estados
-                                </div>
-                                <p class="text-[10px] text-slate-500 leading-tight">Explica qué significa un número o letra (ej: 'A' = Activo).</p>
-                            </button>
-                            <button type="button" data-category="sql_example" class="template-type-btn p-3 border border-slate-200 hover:border-slate-400 bg-white text-left transition cursor-pointer rounded-none">
-                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5 mb-1">
-                                    <i class="fa-solid fa-code text-indigo-600"></i> Consulta SQL Ejemplo
-                                </div>
-                                <p class="text-[10px] text-slate-500 leading-tight">Pega un SELECT de oro verificado para usar de plantilla.</p>
-                            </button>
-                            <button type="button" data-category="kpi_formula" class="template-type-btn p-3 border border-slate-200 hover:border-slate-400 bg-white text-left transition cursor-pointer rounded-none">
-                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5 mb-1">
-                                    <i class="fa-solid fa-calculator text-emerald-600"></i> Fórmula o Cálculo
-                                </div>
-                                <p class="text-[10px] text-slate-500 leading-tight">Enseña cómo se calcula un indicador o valor matemático.</p>
-                            </button>
+                            </div>
                         </div>
-                    </div>
 
-                    <form id="formTrainKnowledgeView" onsubmit="return false;" class="space-y-3">
+                        <div class="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden custom-scrollbar p-5">
+                        <form id="formTrainKnowledgeView" onsubmit="return false;" class="space-y-3">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 mb-1">Concepto / Dominio</label>
                             <div class="flex items-center gap-2">
@@ -218,7 +212,9 @@
                                 <i class="fa-solid fa-brain"></i> Guardar y Vectorizar en pgvector
                             </button>
                         </div>
-                    </form>
+                        </form>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Barra de Filtrado de Cards de Aprendizaje -->
@@ -385,6 +381,7 @@
         <script src="{{ asset('js/training_view.js') }}"></script>
     </x-slot:scripts>
 
+    @include('settings.partials.settings-spa-nav')
 </x-app-layout>
 
 

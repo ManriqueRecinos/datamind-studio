@@ -107,7 +107,7 @@
      * Muestra una notificación Toastr respetando la jerarquía de severidad.
      * Severidades menores se ignoran silenciosamente; advertencias nunca pisan errores activos.
      */
-    function notify(type, message, title = 'DataMind AI', options = {}) {
+    function notify(type, message, title = (window.APP_NAME || 'Sin Nombre'), options = {}) {
         if (!window.toastr) return;
 
         const newSeverity = TOAST_SEVERITY_LEVELS[type] || 1;
@@ -522,6 +522,36 @@
 
         try {
             setProcessingState(true);
+            if (!options.preserveView && chatContainer) {
+                if (emptyState) emptyState.classList.add('hidden');
+                chatContainer.innerHTML = '' +
+                    '<div class="space-y-5 py-4 animate-pulse">' +
+                    '  <div class="flex justify-end">' +
+                    '    <div class="bg-slate-200 h-10 w-2/5 rounded-none"></div>' +
+                    '  </div>' +
+                    '  <div class="flex items-start gap-3">' +
+                    '    <div class="size-8 rounded-full bg-slate-200 shrink-0"></div>' +
+                    '    <div class="flex-1 space-y-2.5 max-w-2xl">' +
+                    '      <div class="h-3 bg-slate-200 rounded w-1/4"></div>' +
+                    '      <div class="h-2.5 bg-slate-100 rounded w-full"></div>' +
+                    '      <div class="h-2.5 bg-slate-100 rounded w-5/6"></div>' +
+                    '      <div class="h-2.5 bg-slate-100 rounded w-2/3"></div>' +
+                    '    </div>' +
+                    '  </div>' +
+                    '  <div class="flex justify-end">' +
+                    '    <div class="bg-slate-200 h-8 w-1/3 rounded-none"></div>' +
+                    '  </div>' +
+                    '  <div class="flex items-start gap-3">' +
+                    '    <div class="size-8 rounded-full bg-slate-200 shrink-0"></div>' +
+                    '    <div class="flex-1 space-y-2.5 max-w-2xl">' +
+                    '      <div class="h-3 bg-slate-200 rounded w-1/3"></div>' +
+                    '      <div class="h-2.5 bg-slate-100 rounded w-11/12"></div>' +
+                    '      <div class="h-2.5 bg-slate-100 rounded w-3/4"></div>' +
+                    '    </div>' +
+                    '  </div>' +
+                    '</div>';
+            }
+
             const res = await fetch(`/chat/sessions/${encodeURIComponent(sessionId)}`, {
                 headers: { 'Accept': 'application/json' }
             });
@@ -756,7 +786,37 @@
                     trackInflightSession(sessionId, false);
                 }
 
-                const res = await fetch(`/chat/sessions/${encodeURIComponent(sessionId)}`, {
+                if (!options.preserveView && chatContainer) {
+                if (emptyState) emptyState.classList.add('hidden');
+                chatContainer.innerHTML = '' +
+                    '<div class="space-y-5 py-4 animate-pulse">' +
+                    '  <div class="flex justify-end">' +
+                    '    <div class="bg-slate-200 h-10 w-2/5 rounded-none"></div>' +
+                    '  </div>' +
+                    '  <div class="flex items-start gap-3">' +
+                    '    <div class="size-8 rounded-full bg-slate-200 shrink-0"></div>' +
+                    '    <div class="flex-1 space-y-2.5 max-w-2xl">' +
+                    '      <div class="h-3 bg-slate-200 rounded w-1/4"></div>' +
+                    '      <div class="h-2.5 bg-slate-100 rounded w-full"></div>' +
+                    '      <div class="h-2.5 bg-slate-100 rounded w-5/6"></div>' +
+                    '      <div class="h-2.5 bg-slate-100 rounded w-2/3"></div>' +
+                    '    </div>' +
+                    '  </div>' +
+                    '  <div class="flex justify-end">' +
+                    '    <div class="bg-slate-200 h-8 w-1/3 rounded-none"></div>' +
+                    '  </div>' +
+                    '  <div class="flex items-start gap-3">' +
+                    '    <div class="size-8 rounded-full bg-slate-200 shrink-0"></div>' +
+                    '    <div class="flex-1 space-y-2.5 max-w-2xl">' +
+                    '      <div class="h-3 bg-slate-200 rounded w-1/3"></div>' +
+                    '      <div class="h-2.5 bg-slate-100 rounded w-11/12"></div>' +
+                    '      <div class="h-2.5 bg-slate-100 rounded w-3/4"></div>' +
+                    '    </div>' +
+                    '  </div>' +
+                    '</div>';
+            }
+
+            const res = await fetch(`/chat/sessions/${encodeURIComponent(sessionId)}`, {
                     method: 'DELETE',
                     headers: {
                         'Accept': 'application/json',
@@ -849,7 +909,7 @@
 
         updateSendButtonState();
         refreshUserSessionsSidebar();
-        notify('success', 'Nueva conversación iniciada.', 'DataMind AI');
+        notify('success', 'Nueva conversación iniciada.', window.APP_NAME || 'Sin Nombre');
     }
 
     /**
@@ -864,7 +924,7 @@
 
         // Comprobar bloqueo por sesión
         if (isSessionBusy(targetSessionId)) {
-            notify('warning', 'Esta conversación ya está procesando una consulta. Espera a que termine.', 'DataMind AI');
+            notify('warning', 'Esta conversación ya está procesando una consulta. Espera a que termine.', window.APP_NAME || 'Sin Nombre');
             return;
         }
 
@@ -1257,7 +1317,7 @@
                     </button>
                     ` : ''}
                     <a href="/chat/export/${dataset_id}" 
-                       onclick="if(window.notify){ window.notify('info', 'Descargando archivo Excel estilizado...', 'DataMind AI'); }"
+                       onclick="if(window.notify){ window.notify('info', 'Descargando archivo Excel estilizado...', window.APP_NAME || 'Sin Nombre'); }"
                        class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold shadow-xs transition duration-150">
                         <i class="fa-solid fa-file-excel text-sm"></i>
                         <span>Generar Excel (.xlsx)</span>
@@ -1948,6 +2008,7 @@
         const row = document.createElement('div');
         row.className = 'flex justify-start mb-6 w-full';
 
+        const appName = window.APP_NAME || 'Sin Nombre';
         row.innerHTML = `
             <div class="max-w-3xl w-full flex items-start gap-3">
                 <div class="h-9 w-9 rounded-xl bg-datamind-avatar text-white flex items-center justify-center text-sm font-bold shadow-sm shrink-0">
@@ -1956,17 +2017,20 @@
                 <div class="bg-white border border-datamind-light/70 text-slate-800 p-5 rounded-2xl rounded-tl-xs shadow-xs grow flex flex-col overflow-hidden">
                     <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
                         <span class="text-xs font-bold text-datamind-dark flex items-center gap-1.5">
-                            <span class="h-2 w-2 rounded-full bg-datamind-primary"></span> DataMind AI
+                            <span class="h-2 w-2 rounded-full bg-datamind-primary"></span> ${appName}
                         </span>
                         <div class="footer-badge"></div>
                     </div>
                     <div class="ai-content-wrapper flex flex-col">
                         <div class="ai-text markdown-body markdown-ai text-sm leading-relaxed text-slate-700" data-raw-markdown="">
-                            <div class="ai-loading-indicator inline-flex items-center gap-1.5 text-slate-400 py-1">
-                                <span class="h-2 w-2 rounded-full bg-datamind-primary animate-bounce"></span>
-                                <span class="h-2 w-2 rounded-full bg-datamind-secondary animate-bounce" style="animation-delay: 0.15s"></span>
-                                <span class="h-2 w-2 rounded-full bg-datamind-light animate-bounce" style="animation-delay: 0.3s"></span>
-                                <span class="text-xs ml-1 text-datamind-secondary font-medium">Analizando contexto y procesos...</span>
+                            <div class="ai-loading-indicator space-y-2.5 py-1 animate-pulse">
+                                <div class="flex items-center gap-2 text-xs text-datamind-secondary font-medium">
+                                    <span class="h-2 w-2 rounded-full bg-datamind-primary"></span>
+                                    <span>Analizando contexto y procesos...</span>
+                                </div>
+                                <div class="h-2.5 bg-slate-200 rounded w-3/4"></div>
+                                <div class="h-2.5 bg-slate-100 rounded w-full"></div>
+                                <div class="h-2.5 bg-slate-100 rounded w-5/6"></div>
                             </div>
                         </div>
                     </div>

@@ -262,8 +262,12 @@
 
     function openRuleDetailModal(rule) {
         currentInspectedRule = rule;
-        detailRuleTitle.textContent = rule.title || 'Detalle del Aprendizaje';
-        detailRuleContent.textContent = rule.content || '';
+        const titleEl = document.getElementById('detailRuleTitle') || detailRuleTitle;
+        const contentEl = document.getElementById('detailRuleContent') || detailRuleContent;
+        const badgeEl = document.getElementById('detailCategoryBadge') || detailCategoryBadge;
+
+        if (titleEl) titleEl.textContent = rule.title || 'Detalle del Aprendizaje';
+        if (contentEl) contentEl.textContent = rule.content || '';
 
         const categoryLabels = {
             custom_relation: 'Relación JOIN (2 Tablas)',
@@ -272,7 +276,7 @@
             kpi_formula: 'Fórmula o Cálculo Matemático',
             process_manual: 'Documento Ingestado'
         };
-        detailCategoryBadge.textContent = categoryLabels[rule.category] || rule.category;
+        if (badgeEl) badgeEl.textContent = categoryLabels[rule.category] || rule.category;
 
         // SQL asociado si existe
         const meta = rule.metadata || {};
