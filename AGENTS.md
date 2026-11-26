@@ -1,6 +1,6 @@
 # Reglas del Agente - Supertex AI (Laravel 13)
 
-> **Versión Actual del Proyecto:** `1.1.2`  
+> **Versión Actual del Proyecto:** `1.1.3`  
 > **Nombre del Sistema:** Supertex AI  
 > **Framework:** Laravel 13 con PHP 8.3+ / 8.5+
 

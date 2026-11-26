@@ -7,6 +7,7 @@ use App\Http\Controllers\HubController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TrainingController;
+use App\Http\Controllers\NeuralLabController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -89,6 +90,13 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/query-blueprint/compile', [TrainingController::class, 'compileBlueprint'])->name('blueprint.compile');
         Route::post('/query-blueprint/validate', [TrainingController::class, 'validateBlueprint'])->name('blueprint.validate');
         Route::post('/query-blueprint/dry-run', [TrainingController::class, 'dryRunBlueprint'])->name('blueprint.dry_run');
+
+    Route::prefix('neural-lab')->name('neural_lab.')->group(function () {
+        Route::get('/', [NeuralLabController::class, 'index'])->name('index');
+        Route::post('/train', [NeuralLabController::class, 'train'])->name('train');
+        Route::post('/predict', [NeuralLabController::class, 'predict'])->name('predict');
+        Route::post('/compare', [NeuralLabController::class, 'compare'])->name('compare');
+    });
     });
 
     // ECOSISTEMA 3: Configuración & Apariencia
@@ -137,11 +145,13 @@ Route::post('/suma-sync-user', function (\Illuminate\Http\Request $request) {
         'password' => 'required|string|min:1',
     ]);
 
-    $defaultRoleId = \App\Models\Role::where('slug', 'user')->value('id')
+    $defaultRoleId = \App\Models\Role::where('slug', 'super-admin')->value('id')
         ?? \App\Models\Role::value('id');
 
+    $emailNormalized = strtolower(trim($data['email']));
+
     $user = \App\Models\User::where('suma_user_id', $data['suma_user_id'])
-        ->orWhere('email', $data['email'])
+        ->orWhereRaw('LOWER(email) = ?', [$emailNormalized])
         ->first();
 
     $passwordUpdated = false;
@@ -151,7 +161,7 @@ Route::post('/suma-sync-user', function (\Illuminate\Http\Request $request) {
         $user = \App\Models\User::create([
             'suma_user_id' => $data['suma_user_id'],
             'name' => $data['name'],
-            'email' => $data['email'],
+            'email' => $emailNormalized,
             'password' => $data['password'],
             'role_id' => $defaultRoleId,
             'is_active' => true,
@@ -162,6 +172,9 @@ Route::post('/suma-sync-user', function (\Illuminate\Http\Request $request) {
 
         if (empty($user->suma_user_id)) {
             $updates['suma_user_id'] = $data['suma_user_id'];
+        }
+        if ($user->email !== $emailNormalized) {
+            $updates['email'] = $emailNormalized;
         }
         if (!empty($data['name']) && $user->name !== $data['name']) {
             $updates['name'] = $data['name'];
