@@ -1,7 +1,7 @@
-# Reglas del Agente - DataMind Studio (Laravel 13)
+# Reglas del Agente - Supertex AI (Laravel 13)
 
-> **Versión Actual del Proyecto:** `1.0.9`  
-> **Nombre del Sistema:** DataMind Studio  
+> **Versión Actual del Proyecto:** `1.1.0`  
+> **Nombre del Sistema:** Supertex AI  
 > **Framework:** Laravel 13 con PHP 8.3+ / 8.5+
 
 ---

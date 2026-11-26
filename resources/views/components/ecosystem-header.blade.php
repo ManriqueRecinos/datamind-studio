@@ -30,8 +30,13 @@
                 <i class="fa-solid fa-brain"></i>
             </a>
             <div class="min-w-0 flex items-center gap-2.5">
+                @php
+                    $appNameParts = explode(' ', config('app.name', 'Sin Nombre'), 2);
+                    $firstWord = strtoupper($appNameParts[0] ?? '');
+                    $restWords = isset($appNameParts[1]) ? strtoupper($appNameParts[1]) : '';
+                @endphp
                 <span class="text-sm sm:text-base font-extrabold tracking-tight text-slate-900 truncate">
-                    DATAMIND <span class="text-datamind-primary">STUDIO</span>
+                    {{ $firstWord }}@if($restWords) <span class="text-datamind-primary">{{ $restWords }}</span>@endif
                 </span>
                 <span class="hidden sm:inline-flex text-[10px] font-bold px-2 py-0.5 rounded-none border border-datamind-light/80 bg-datamind-neutral text-datamind-dark uppercase">
                     v1.4.0

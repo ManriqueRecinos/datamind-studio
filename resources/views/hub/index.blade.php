@@ -4,7 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>DataMind Studio - Inicio y Selección de Ecosistema</title>
+    <title>{{ config('app.name', 'Sin Nombre') }} - Inicio y Selección de Ecosistema</title>
+    <script>
+        window.APP_NAME = @json(config('app.name', 'Sin Nombre'));
+    </script>
 
     <!-- Scripts Head: Theme Manager con Cero-FOUC -->
     <script src="{{ asset('js/theme_manager.js') }}"></script>
@@ -37,7 +40,12 @@
                 <i class="fa-solid fa-brain"></i>
             </span>
             <div>
-                <span class="text-base font-bold tracking-tight text-slate-900">DATAMIND <span class="text-datamind-primary">STUDIO</span></span>
+                @php
+                    $appNameParts = explode(' ', config('app.name', 'Sin Nombre'), 2);
+                    $firstWord = strtoupper($appNameParts[0] ?? '');
+                    $restWords = isset($appNameParts[1]) ? strtoupper($appNameParts[1]) : '';
+                @endphp
+                <span class="text-base font-bold tracking-tight text-slate-900">{{ $firstWord }}@if($restWords) <span class="text-datamind-primary">{{ $restWords }}</span>@endif</span>
                 <p class="text-[11px] text-datamind-secondary font-medium">Plataforma Analítica & RAG</p>
             </div>
         </div>
@@ -127,7 +135,7 @@
 
     <!-- Footer Discreto -->
     <footer class="w-full max-w-7xl mx-auto px-4 py-6 text-center text-xs text-slate-400 border-t border-slate-100">
-        DataMind Studio v1.2.0 &bull; Arquitectura Multi-Ecosistema por Base de Datos
+        {{ config('app.name', 'Sin Nombre') }} v1.2.0 &bull; Arquitectura Multi-Ecosistema por Base de Datos
     </footer>
 
     <!-- Scripts Locales Obligatorios (Zero CDNs) -->

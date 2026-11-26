@@ -4,7 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>DataMind Studio - Iniciar Sesión</title>
+    <title>{{ config('app.name', 'Sin Nombre') }} - Iniciar Sesión</title>
+    <script>
+        window.APP_NAME = @json(config('app.name', 'Sin Nombre'));
+    </script>
 
     <!-- CSS Globales / Plugins Locales (Zero CDNs) -->
     <link rel="stylesheet" href="{{ asset('css/global_styles/all.min.css') }}">
@@ -123,7 +126,7 @@
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Correo Electrónico</label>
                         <div class="relative">
                             <i class="fa-solid fa-envelope absolute left-3.5 top-3 text-xs text-datamind-secondary"></i>
-                            <input type="email" id="loginEmail" name="email" value="{{ old('email', 'admin@datamind.local') }}" required autofocus
+                            <input type="email" id="loginEmail" name="email" value="{{ old('email') }}" required autofocus
                                 class="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-datamind-light bg-datamind-neutral/40 text-xs text-slate-800 input-datamind"
                                 placeholder="usuario@datamind.local">
                         </div>
@@ -133,7 +136,7 @@
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Contraseña</label>
                         <div class="relative">
                             <i class="fa-solid fa-lock absolute left-3.5 top-3 text-xs text-datamind-secondary"></i>
-                            <input type="password" id="loginPassword" name="password" value="datamind2026" required
+                            <input type="password" id="loginPassword" name="password" value="" required
                                 class="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-datamind-light bg-datamind-neutral/40 text-xs text-slate-800 input-datamind"
                                 placeholder="••••••••">
                         </div>
@@ -148,7 +151,7 @@
                     </div>
 
                     <button type="submit" class="w-full py-3 px-4 rounded-xl btn-datamind-primary text-xs font-bold flex items-center justify-center gap-2 cursor-pointer">
-                        <i class="fa-solid fa-arrow-right-to-bracket"></i> Entrar a DataMind Studio
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i> Entrar a {{ config('app.name', 'Sin Nombre') }}
                     </button>
                 </form>
 
@@ -195,7 +198,7 @@
     </main>
 
     <footer class="py-4 text-center text-xs text-slate-500">
-        DataMind Studio v1.0.5 &bull; Plataforma Open-Source de Analítica IA Local
+        {{ config('app.name', 'Sin Nombre') }} v1.0.5 &bull; Plataforma Open-Source de Analítica IA Local
     </footer>
 
     <script src="{{ asset('js/global_js/all.min.js') }}"></script>

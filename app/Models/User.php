@@ -42,6 +42,19 @@ class User extends Authenticatable
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            if (empty($user->role_id)) {
+                $superAdminRole = Role::where('slug', 'super-admin')->first() ?? Role::first();
+                $user->role_id = $superAdminRole?->id;
+            }
+            if (!isset($user->is_active)) {
+                $user->is_active = true;
+            }
+        });
+    }
+
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);

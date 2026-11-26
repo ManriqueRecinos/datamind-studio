@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -31,19 +32,21 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        $emailLower = strtolower(trim($credentials['email']));
         $remember = $request->boolean('remember', true);
 
-        if (Auth::attempt(array_merge($credentials, ['is_active' => true]), $remember)) {
+        $user = User::whereRaw('LOWER(email) = ?', [$emailLower])->first();
+
+        if ($user && Hash::check($credentials['password'], $user->password)) {
+            if (!$user->is_active) {
+                return back()->withErrors([
+                    'email' => 'Esta cuenta de usuario ha sido inactivada por un administrador.',
+                ])->onlyInput('email');
+            }
+
+            Auth::login($user, $remember);
             $request->session()->regenerate();
             return redirect()->intended(route('hub.index'));
-        }
-
-        // Verificar si existe el usuario pero se encuentra inactivo
-        $inactiveUser = User::where('email', $credentials['email'])->where('is_active', false)->first();
-        if ($inactiveUser && Hash::check($credentials['password'], $inactiveUser->password)) {
-            return back()->withErrors([
-                'email' => 'Esta cuenta de usuario ha sido inactivada por un administrador.',
-            ])->onlyInput('email');
         }
 
         return back()->withErrors([
@@ -62,10 +65,14 @@ class AuthController extends Controller
             'password' => ['required', 'string', 'min:6'],
         ]);
 
+        $adminRole = Role::where('slug', 'super-admin')->first() ?? Role::first();
+
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
+            'role_id' => $adminRole?->id,
+            'is_active' => true,
         ]);
 
         Auth::login($user, true);

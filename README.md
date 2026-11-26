@@ -1,15 +1,15 @@
-# 🖥️ DataMind Studio — Open-Source Multi-Database AI Workspace & Chat Portal
+# 🖥️ Supertex AI — Multi-Database AI Workspace & Chat Portal
 
 [![Laravel](https://img.shields.io/badge/Laravel-13.x-0476D9?logo=laravel&logoColor=white)](https://laravel.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-v4.0-0468BF?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Offline Ready](https://img.shields.io/badge/Architecture-100%25%20Offline%20%2F%20Zero%20CDNs-4B89BF)](#)
-[![Version](https://img.shields.io/badge/Version-1.0.9-emerald.svg)](#)
+[![Version](https://img.shields.io/badge/Version-1.1.0-emerald.svg)](#)
 
-> **Versión Actual:** `1.0.9`  
-> **Estado:** Plataforma Web Open-Source para Análisis de Bases de Datos con IA Local  
+> **Versión Actual:** `1.1.0`  
+> **Estado:** Plataforma Web para Análisis de Bases de Datos con IA Local  
 > **Arquitectura Frontend:** 100% Local / Offline-Ready (Cero CDNs externos)
 
-**DataMind Studio** es la interfaz web interactiva para [**DataMind Core (`datamind-core`)**](https://github.com/ManriqueRecinos/datamind-core). Construida sobre **Laravel 13** y **Tailwind CSS v4**, permite conectar gráficamente cualquier base de datos **PostgreSQL** o **MariaDB / MySQL**, inspeccionar todas sus tablas detectadas en tiempo real, seleccionar con *checkboxes* cuáles tablas vectorizar en `pgvector` y conversar con tus bases de datos mediante **Streaming SSE**, tablas interactivas **DataTables** y descarga de reportes **Excel (`.xlsx`)**.
+**Supertex AI** es la interfaz web interactiva para [**DataMind Core (`datamind-core`)**](https://github.com/ManriqueRecinos/datamind-core). Construida sobre **Laravel 13** y **Tailwind CSS v4**, permite conectar gráficamente cualquier base de datos **PostgreSQL** o **MariaDB / MySQL**, inspeccionar todas sus tablas detectadas en tiempo real, seleccionar con *checkboxes* cuáles tablas vectorizar en `pgvector` y conversar con tus bases de datos mediante **Streaming SSE**, tablas interactivas **DataTables** y descarga de reportes **Excel (`.xlsx`)**.
 
 ---
 
@@ -98,7 +98,7 @@ php artisan key:generate
 Abre `.env` y verifica la URL y el Token de conexión hacia tu instancia de **DataMind Core**:
 
 ```ini
-APP_NAME="DataMind Studio"
+APP_NAME="Supertex AI"
 APP_URL=http://127.0.0.1:8085
 
 # Conexión con el motor Python FastAPI (datamind-core)

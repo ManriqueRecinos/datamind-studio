@@ -1,5 +1,5 @@
 @props([
-    'title' => 'DataMind Studio',
+    'title' => null,
     'ecosystem' => 'chat',
     'ecosystemLabel' => 'Ecosistema de Chat & Analítica',
     'ecosystemIcon' => 'fa-comments',
@@ -15,7 +15,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title }} - DataMind Studio</title>
+    <title>{{ $title ? $title . ' - ' . config('app.name', 'Sin Nombre') : config('app.name', 'Sin Nombre') }}</title>
+    <script>
+        window.APP_NAME = @json(config('app.name', 'Sin Nombre'));
+    </script>
 
     <!-- Scripts Head: Theme Manager con Cero-FOUC -->
     <script src="{{ asset('js/theme_manager.js') }}"></script>

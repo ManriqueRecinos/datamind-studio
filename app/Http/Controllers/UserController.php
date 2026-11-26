@@ -50,11 +50,13 @@ class UserController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
+        $adminRoleId = Role::where('slug', 'super-admin')->value('id') ?? Role::value('id');
+
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'role_id' => $validated['role_id'] ?? null,
+            'role_id' => $validated['role_id'] ?? $adminRoleId,
             'is_active' => $request->has('is_active'),
         ]);
 
